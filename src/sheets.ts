@@ -7,7 +7,7 @@ export async function fetchActiveRange(): Promise<string[][]> {
             }
             if (ev.data?.type === 'error') {
                 window.removeEventListener('message', onMessage);
-                reject(new Error(ev.data.payload as string));
+                reject(new Error(String(ev.data.payload)));
             }
         }
         window.addEventListener('message', onMessage);

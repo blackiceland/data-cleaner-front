@@ -1,24 +1,40 @@
 import { useState } from 'react';
-import { fetchActiveRange } from './lib/sheets';
+import { fetchActiveRange } from './sheets';
+import { runDeduplicate } from './api';
 
 export default function App() {
-    const [text, setText] = useState('Выделите диапазон в таблице, затем нажмите кнопку');
+    const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+    const [exact, setExact] = useState(0);
+    const [maybe, setMaybe] = useState(0);
+    const [err, setErr] = useState('');
 
-    async function handleClick() {
+    const handleClean = async () => {
+        setStatus('loading');
+        setErr('');
         try {
             const rows = await fetchActiveRange();
-            setText(`Строк получено: ${rows.length}`);
+            const res = await runDeduplicate(rows);
+            setExact(res.exact.length);
+            setMaybe(res.maybe.length);
+            setStatus('idle');
         } catch (e) {
-            setText('Ошибка: данные из Sheets не пришли (смотрите консоль)');
-            console.error(e);
+            setStatus('error');
+            setErr((e as Error).message);
         }
-    }
+    };
 
     return (
         <div style={{ padding: 16, fontFamily: 'sans-serif' }}>
-            <h2>Data Cleaner Dev UI</h2>
-            <button onClick={handleClick}>Считать диапазон</button>
-            <p>{text}</p>
+            <h2>Data Cleaner</h2>
+            <button disabled={status === 'loading'} onClick={handleClean}>
+                {status === 'loading' ? 'Scanning…' : 'Clean duplicates'}
+            </button>
+            {exact + maybe > 0 && (
+                <p>
+                    Exact: <b>{exact}</b> &nbsp; Possible: <b>{maybe}</b>
+                </p>
+            )}
+            {status === 'error' && <p style={{ color: '#e53935' }}>{err}</p>}
         </div>
     );
 }
