@@ -4,8 +4,12 @@
     <meta charset="UTF-8">
     <script src="https://cdn.tailwindcss.com/3.4.4"></script>
 
-    <!-- Auth0 SPA JS -->
-    <?!= HtmlService.createHtmlOutputFromFile('auth0-lib').getContent(); ?>
+    <script nonce="<?= HtmlService.getScriptNonce() ?>">
+        <?!=
+        HtmlService.createHtmlOutputFromFile('auth0-lib').getContent();
+            ?
+        >
+    </script>
 
     <style>
         body {
@@ -30,7 +34,7 @@
     <div id="status" class="min-h-[1.5rem] text-sm text-center break-all"></div>
 </div>
 
-<script>
+<script nonce="<?= HtmlService.getScriptNonce() ?>">
     (function (el) {
         let sx = 0, sy = 0;
         el.addEventListener('pointerdown', e => {
@@ -53,13 +57,13 @@
     const API_BASE = 'https://cleaner-132616592036.us-central1.run.app/api/v1';
 
     const btn = document.getElementById('btn');
-    const status = m => (document.getElementById('status').textContent = m);
+    const status = msg => (document.getElementById('status').textContent = msg);
     const countExact = rows => {
-        const s = new Map();
+        const m = new Map();
         let d = 0;
         rows.forEach(r => {
             const k = r.join('\u0000');
-            s.has(k) ? d++ : s.set(k, 1)
+            m.has(k) ? d++ : m.set(k, 1)
         });
         return d;
     };
