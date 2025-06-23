@@ -1,3 +1,4 @@
+/** UI-меню ******************************************************************/
 function onOpen() {
   SpreadsheetApp.getUi()
       .createMenu('DataCleaner')
@@ -5,24 +6,29 @@ function onOpen() {
       .addToUi();
 }
 
+/** Запуск диалога **********************************************************/
 function openDataCleaner() {
   const html = HtmlService
-      .createHtmlOutputFromFile('index')
-      .setWidth(620)
-      .setHeight(580);
+      .createHtmlOutputFromFile('dialog')
+      .setSandboxMode(HtmlService.SandboxMode.IFRAME)     // сторонние скрипты разрешены
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+      .setWidth(400)
+      .setHeight(300);
+
   SpreadsheetApp.getUi().showModelessDialog(html, 'DataCleaner');
 }
 
+/** RPC: читаем выделенный диапазон ******************************************/
 function getActiveRangeValues() {
   return SpreadsheetApp.getActiveRange().getValues();
 }
 
-function highlightExactRows(rowIdxArr) {
-  if (!rowIdxArr || rowIdxArr.length === 0) return;
+/** RPC: подсветка найденных точных дублей **********************************/
+function highlightExactRows(rowIndexes) {
+  if (!rowIndexes || rowIndexes.length === 0) return;
   const sheet   = SpreadsheetApp.getActiveSheet();
   const lastCol = sheet.getLastColumn();
-  const rangeList = rowIdxArr.map(i =>
-      sheet.getRange(i + 1, 1, 1, lastCol).getA1Notation()
-  );
-  sheet.getRangeList(rangeList).setBackground('#F28B82');
+  const ranges  = rowIndexes.map(i =>
+      sheet.getRange(i + 1, 1, 1, lastCol).getA1Notation());
+  sheet.getRangeList(ranges).setBackground('#F28B82');
 }

@@ -1,3 +1,12 @@
-**
+node_modules/**
+.vscode/**
+dist/**
+
+# оставляем ВСЁ, что лежит в src
 !src/**
-!appsscript.json
+
+node_modules/
+dist/
+react/
+.idea/
+.git/
