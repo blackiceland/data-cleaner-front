@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <script src="https://cdn.tailwindcss.com/3.4.4"></script>
 
-    <script nonce="<?= HtmlService.getScriptNonce() ?>">
+    <script>
         <?!=
         HtmlService.createHtmlOutputFromFile('auth0-lib').getContent();
             ?
@@ -34,7 +34,7 @@
     <div id="status" class="min-h-[1.5rem] text-sm text-center break-all"></div>
 </div>
 
-<script nonce="<?= HtmlService.getScriptNonce() ?>">
+<script>
     (function (el) {
         let sx = 0, sy = 0;
         el.addEventListener('pointerdown', e => {
