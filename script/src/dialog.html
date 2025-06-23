@@ -2,120 +2,104 @@
 <html>
 <head>
     <meta charset="UTF-8" />
-    <!-- Tailwind JIT CDN -->
     <script src="https://cdn.tailwindcss.com/3.4.4"></script>
-    <!-- Auth0 SPA (production, CSP-friendly) -->
     <script src="https://cdn.auth0.com/js/auth0-spa-js/2.0/auth0-spa-js.production.js" defer></script>
-
     <style>
-        body { margin:0; font-family:ui-sans-serif,'Noto Sans',sans-serif }
-        #card { box-shadow:0 2px 6px rgba(0,0,0,.15); cursor:move; }
+        body{margin:0;font-family:ui-sans-serif,'Noto Sans',sans-serif}
+        #card{box-shadow:0 2px 6px rgba(0,0,0,.15);cursor:move}
     </style>
 </head>
-
 <body>
-<!-- плавающая карточка -->
-<div id="card" class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-80
-                       bg-white/90 backdrop-blur rounded-xl p-5 flex flex-col gap-4">
-
+<div id="card" class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-80 bg-white/90 backdrop-blur rounded-xl p-5 flex flex-col gap-4">
     <h2 class="text-lg font-semibold text-center">DataCleaner</h2>
-
-    <button id="btn" class="w-full px-4 py-2 rounded bg-cyan-500 text-white disabled:opacity-50" disabled>
-        Clean duplicates
-    </button>
-
+    <button id="btn" class="w-full px-4 py-2 rounded bg-cyan-500 text-white disabled:opacity-50" disabled>Clean duplicates</button>
     <div id="status" class="min-h-[1.5rem] text-sm text-center break-all"></div>
 </div>
 
 <script>
-    // --- drag-move карточки -------------------------------------------------
-    (function makeDraggable(el){
-        let sx = 0, sy = 0;
-        el.addEventListener('pointerdown', e => {
-            if (e.target.tagName === 'BUTTON') return;   // не мешаем клику по кнопке
-            sx = e.clientX - el.offsetLeft;
-            sy = e.clientY - el.offsetTop;
-            const move = ev => {
-                el.style.left = (ev.clientX - sx) + 'px';
-                el.style.top  = (ev.clientY - sy) + 'px';
+    (function(el){
+        let sx=0,sy=0;
+        el.addEventListener('pointerdown',e=>{
+            if(e.target.tagName==='BUTTON')return;
+            sx=e.clientX-el.offsetLeft;
+            sy=e.clientY-el.offsetTop;
+            const move=ev=>{
+                el.style.left=(ev.clientX-sx)+'px';
+                el.style.top=(ev.clientY-sy)+'px';
             };
-            const up = () => { window.removeEventListener('pointermove', move); };
-            window.addEventListener('pointermove', move);
-            window.addEventListener('pointerup',   up, { once:true });
+            const up=()=>window.removeEventListener('pointermove',move);
+            window.addEventListener('pointermove',move);
+            window.addEventListener('pointerup',up,{once:true});
         });
     })(document.getElementById('card'));
 
-    // --- константы ---------------------------------------------------------
-    const AUTH0_DOMAIN   = 'dev-rwjc4dah5ucs6nj8.us.auth0.com';
-    const AUTH0_CLIENT   = '6R1ZGA6alWQHUmADoGgFL4ds0ibdBKNA';
-    const AUTH0_AUDIENCE = 'https://sheets-cleaner.api';
-    const API_BASE       = 'https://cleaner-132616592036.us-central1.run.app/api/v1';
+    const AUTH0_DOMAIN='dev-rwjc4dah5ucs6nj8.us.auth0.com';
+    const AUTH0_CLIENT='6R1ZGA6alWQHUmADoGgFL4ds0ibdBKNA';
+    const AUTH0_AUDIENCE='https://sheets-cleaner.api';
+    const API_BASE='https://cleaner-132616592036.us-central1.run.app/api/v1';
 
-    const btn    = document.getElementById('btn');
-    const status = msg => (document.getElementById('status').textContent = msg);
+    const btn=document.getElementById('btn');
+    const status=msg=>(document.getElementById('status').textContent=msg);
 
-    // --- helper: локальный подсчёт точных дублей ---------------------------
-    const countExact = rows => {
-        const seen = new Map(); let dup = 0;
-        rows.forEach(r => { const k = r.join('\u0000'); seen.has(k) ? dup++ : seen.set(k,1); });
+    const countExact=rows=>{
+        const seen=new Map();let dup=0;
+        rows.forEach(r=>{const k=r.join('\u0000');seen.has(k)?dup++:seen.set(k,1)});
         return dup;
     };
 
-    // --- инициализируем Auth0, затем включаем кнопку -----------------------
-    window.addEventListener('DOMContentLoaded', async () => {
-        let auth0 = null;
-        try {
-            if (!window.auth0?.createAuth0Client)
-                throw new Error('Auth0 script blocked by CSP');
-            auth0 = await window.auth0.createAuth0Client({
-                domain: AUTH0_DOMAIN,
-                clientId: AUTH0_CLIENT,
-                authorizationParams: { audience: AUTH0_AUDIENCE, redirect_uri: window.location.origin },
-                cacheLocation: 'memory'
+    window.addEventListener('DOMContentLoaded',async()=>{
+        let auth0=null;
+        try{
+            if(!window.auth0?.createAuth0Client)throw new Error('Auth0 script blocked by CSP');
+            auth0=await window.auth0.createAuth0Client({
+                domain:AUTH0_DOMAIN,
+                clientId:AUTH0_CLIENT,
+                authorizationParams:{audience:AUTH0_AUDIENCE,redirect_uri:window.location.origin},
+                cacheLocation:'memory'
             });
             status('Auth0 ready');
-        } catch (e) {
+        }catch(e){
             status(`Auth0 init failed – local mode (${e.message})`);
         }
-        btn.disabled = false;
+        btn.disabled=false;
 
-        // --- обработчик кнопки ----------------------------------------------
-        btn.onclick = () => {
-            btn.disabled = true;
+        btn.onclick=()=>{
+            btn.disabled=true;
             status('Fetching range…');
             google.script.run
-                .withSuccessHandler(async rows => {
-                    try {
-                        if (!auth0) throw new Error('Auth0 unavailable');
+                .withSuccessHandler(async rows=>{
+                    try{
+                        if(!auth0)throw new Error('Auth0 unavailable');
                         status(`Rows: ${rows.length} • contacting API…`);
 
-                        if (!(await auth0.isAuthenticated()))
+                        let jwt=null;
+                        try{
+                            jwt=await auth0.getTokenSilently({authorizationParams:{prompt:'none'}});
+                        }catch(_){
                             await auth0.loginWithPopup();
-                        const jwt = await auth0.getTokenSilently();
+                            jwt=await auth0.getTokenSilently();
+                        }
 
-                        const res = await fetch(`${API_BASE}/sheets/duplicates`, {
+                        const res=await fetch(`${API_BASE}/sheets/duplicates`,{
                             method:'POST',
-                            headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${jwt}` },
-                            body: JSON.stringify({ rows })
+                            headers:{'Content-Type':'application/json','Authorization':`Bearer ${jwt}`},
+                            body:JSON.stringify({rows})
                         });
-                        if (!res.ok) throw new Error(`API ${res.status}`);
-                        const { confirmed=[], candidates=[] } = await res.json();
+                        if(!res.ok)throw new Error(`API ${res.status}`);
+                        const{confirmed=[],candidates=[]}=await res.json();
                         status(`Exact: ${confirmed.length} • Possible: ${candidates.length}`);
-
-                        // подсветим точные
-                        const dupRows = [...new Set(confirmed.flat())];
-                        if (dupRows.length) google.script.run.highlightExactRows(dupRows);
-
-                    } catch (err) {
-                        const exact = countExact(rows);
+                        const dupRows=[...new Set(confirmed.flat())];
+                        if(dupRows.length)google.script.run.highlightExactRows(dupRows);
+                    }catch(err){
+                        const exact=countExact(rows);
                         status(`Local exact duplicates: ${exact} (${err.message})`);
-                    } finally {
-                        btn.disabled = false;
+                    }finally{
+                        btn.disabled=false;
                     }
                 })
-                .withFailureHandler(err => {
+                .withFailureHandler(err=>{
                     status(String(err));
-                    btn.disabled = false;
+                    btn.disabled=false;
                 })
                 .getActiveRangeValues();
         };
