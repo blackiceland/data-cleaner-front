@@ -2,11 +2,8 @@
 <html>
 <head>
     <meta charset="UTF-8">
-
-    <!-- Tailwind JIT CDN -->
     <script src="https://cdn.tailwindcss.com/3.4.4"></script>
 
-    <!-- Локально встроенная библиотека auth0-spa-js -->
     <script>
         <?!= HtmlService.createHtmlOutputFromFile('auth0-lib').getContent(); ?>
     </script>
@@ -26,145 +23,101 @@
 
 <body>
 <div id="card"
-     class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-80
-              bg-white/90 backdrop-blur rounded-xl p-5 flex flex-col gap-4">
+     class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-80 bg-white/90 backdrop-blur rounded-xl p-5 flex flex-col gap-4">
     <h2 class="text-lg font-semibold text-center">DataCleaner</h2>
-
-    <button id="btn"
-            class="w-full px-4 py-2 rounded bg-cyan-500 text-white disabled:opacity-50"
-            disabled>
-        Clean duplicates
+    <button id="btn" class="w-full px-4 py-2 rounded bg-cyan-500 text-white disabled:opacity-50" disabled>Clean
+        duplicates
     </button>
-
-    <div id="status"
-         class="min-h-[1.5rem] text-sm text-center break-all"></div>
+    <div id="status" class="min-h-[1.5rem] text-sm text-center break-all"></div>
 </div>
 
 <script>
-    /* --- перетаскивание карточки --- */
     (function (el) {
-        var sx = 0, sy = 0;
-        el.addEventListener('pointerdown', function (e) {
+        let sx = 0, sy = 0;
+        el.addEventListener('pointerdown', e => {
             if (e.target.tagName === 'BUTTON') return;
             sx = e.clientX - el.offsetLeft;
             sy = e.clientY - el.offsetTop;
-
-            function move(ev) {
+            const move = ev => {
                 el.style.left = (ev.clientX - sx) + 'px';
                 el.style.top = (ev.clientY - sy) + 'px';
-            }
-
+            };
+            const up = () => window.removeEventListener('pointermove', move);
             window.addEventListener('pointermove', move);
-            window.addEventListener('pointerup', function () {
-                window.removeEventListener('pointermove', move);
-            }, {once: true});
+            window.addEventListener('pointerup', up, {once: true});
         });
     })(document.getElementById('card'));
 
-    /* --- константы --- */
-    var AUTH0_DOMAIN = 'dev-rwjc4dah5ucs6nj8.us.auth0.com';
-    var AUTH0_CLIENT = '6R1ZGA6alWQHUmADoGgFL4ds0ibdBKNA';
-    var AUTH0_AUDIENCE = 'https://sheets-cleaner.api';
-    var API_BASE = 'https://cleaner-132616592036.us-central1.run.app/api/v1';
+    const AUTH0_DOMAIN = 'dev-rwjc4dah5ucs6nj8.us.auth0.com';
+    const AUTH0_CLIENT = '6R1ZGA6alWQHUmADoGgFL4ds0ibdBKNA';
+    const AUTH0_AUDIENCE = 'https://sheets-cleaner.api';
+    const API_BASE = 'https://cleaner-132616592036.us-central1.run.app/api/v1';
 
-    var btn = document.getElementById('btn');
-    var status = function (msg) {
-        document.getElementById('status').textContent = msg;
+    const btn = document.getElementById('btn');
+    const status = m => document.getElementById('status').textContent = m;
+    const countExact = rows => {
+        const s = new Map();
+        let d = 0;
+        rows.forEach(r => {
+            const k = r.join('\u0000');
+            s.has(k) ? d++ : s.set(k, 1);
+        });
+        return d;
     };
 
-    function countExact(rows) {
-        var seen = {};
-        var dup = 0;
-        rows.forEach(function (r) {
-            var k = r.join('\u0000');
-            if (seen[k]) dup++; else seen[k] = true;
-        });
-        return dup;
-    }
-
-    /* --- main --- */
-    window.addEventListener('DOMContentLoaded', function () {
-        var auth0 = null;
-
+    async function init() {
+        let auth0 = null;
         try {
-            if (!window.auth0 || !window.auth0.createAuth0Client)
-                throw new Error('Auth0 script blocked');
-
-            window.auth0.createAuth0Client({
+            if (!window.auth0?.createAuth0Client) throw new Error('Auth0 script blocked');
+            auth0 = await window.auth0.createAuth0Client({
                 domain: AUTH0_DOMAIN,
                 clientId: AUTH0_CLIENT,
-                authorizationParams: {
-                    audience: AUTH0_AUDIENCE,
-                    redirect_uri: window.location.origin
-                },
+                authorizationParams: {audience: AUTH0_AUDIENCE, redirect_uri: window.location.origin},
                 cacheLocation: 'memory'
-            }).then(function (client) {
-                auth0 = client;
-                status('Auth0 ready');
-            })["catch"](function (e) {
-                status('Auth0 init failed – local mode (' + e.message + ')');
             });
-
+            status('Auth0 ready');
         } catch (e) {
             status('Auth0 init failed – local mode (' + e.message + ')');
         }
 
         btn.disabled = false;
 
-        btn.onclick = function () {
+        btn.onclick = () => {
             btn.disabled = true;
             status('Fetching range…');
-
             google.script.run
-                .withSuccessHandler(function (rows) {
-                    (async function () {
-                        try {
-                            if (!auth0) throw new Error('Auth0 unavailable');
+                .withSuccessHandler(async rows => {
+                    try {
+                        if (!auth0) throw new Error('Auth0 unavailable');
+                        status('Rows: ' + rows.length + ' • contacting API…');
+                        if (!(await auth0.isAuthenticated())) await auth0.loginWithPopup();
+                        const jwt = await auth0.getTokenSilently();
 
-                            status('Rows: ' + rows.length + ' • contacting API…');
-
-                            var isAuth = await auth0.isAuthenticated();
-                            if (!isAuth) await auth0.loginWithPopup();
-
-                            var jwt = await auth0.getTokenSilently();
-
-                            var res = await fetch(API_BASE + '/sheets/duplicates', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Authorization': 'Bearer ' + jwt
-                                },
-                                body: JSON.stringify({rows: rows})
-                            });
-
-                            if (!res.ok) throw new Error('API ' + res.status);
-
-                            var data = await res.json();
-                            var confirmed = data.confirmed || [];
-                            var candidates = data.candidates || [];
-
-                            status('Exact: ' + confirmed.length +
-                                ' • Possible: ' + candidates.length);
-
-                            var dupRows = Array.from(new Set([].concat.apply([], confirmed)));
-                            if (dupRows.length)
-                                google.script.run.highlightExactRows(dupRows);
-
-                        } catch (err) {
-                            status('Local exact duplicates: ' +
-                                countExact(rows) + ' (' + err.message + ')');
-                        } finally {
-                            btn.disabled = false;
-                        }
-                    })();
+                        const res = await fetch(API_BASE + '/sheets/duplicates', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt},
+                            body: JSON.stringify({rows})
+                        });
+                        if (!res.ok) throw new Error('API ' + res.status);
+                        const {confirmed = [], candidates = []} = await res.json();
+                        status('Exact: ' + confirmed.length + ' • Possible: ' + candidates.length);
+                        const dup = [...new Set(confirmed.flat())];
+                        if (dup.length) google.script.run.highlightExactRows(dup);
+                    } catch (err) {
+                        status('Local exact duplicates: ' + countExact(rows) + ' (' + err.message + ')');
+                    } finally {
+                        btn.disabled = false;
+                    }
                 })
-                .withFailureHandler(function (err) {
+                .withFailureHandler(err => {
                     status(String(err));
                     btn.disabled = false;
                 })
                 .getActiveRangeValues();
         };
-    });
+    }
+
+    init();
 </script>
 </body>
 </html>
