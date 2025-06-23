@@ -6,25 +6,18 @@ function onOpen() {
 }
 
 function openDataCleaner() {
-    const html = HtmlService
-        .createTemplateFromFile('dialog')
-        .evaluate()
-        .setSandboxMode(HtmlService.SandboxMode.IFRAME)
-        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-        .setWidth(400)
-        .setHeight(300);
-
-    SpreadsheetApp.getUi().showModelessDialog(html, 'DataCleaner');
+    SpreadsheetApp.getUi().showModelessDialog(
+        HtmlService.createHtmlOutputFromFile('dialog')
+            .setWidth(620).setHeight(580),
+        'DataCleaner');
 }
 
 function getActiveRangeValues() {
     return SpreadsheetApp.getActiveRange().getValues();
 }
 
-function highlightExactRows(rowIndexes) {
-    if (!rowIndexes || rowIndexes.length === 0) return;
-    const sheet = SpreadsheetApp.getActiveSheet();
-    const lastCol = sheet.getLastColumn();
-    const ranges = rowIndexes.map(i => sheet.getRange(i + 1, 1, 1, lastCol).getA1Notation());
-    sheet.getRangeList(ranges).setBackground('#F28B82');
+function highlightExactRows(rowIdxArr) {
+    if (!rowIdxArr?.length) return;
+    const r = SpreadsheetApp.getActiveRange();
+    rowIdxArr.forEach(i => r.offset(i, 0, 1, r.getWidth()).setBackground('#ffeeba'));
 }
