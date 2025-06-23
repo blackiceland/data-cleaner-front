@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <script src="https://cdn.tailwindcss.com/3.4.4"></script>
 
+    <?!= HtmlService.createHtmlOutputFromFile('auth0-lib').getContent(); ?>
     <style>
         body {
             margin: 0;
@@ -21,25 +22,29 @@
 <div id="card" class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-80
                          bg-white/90 backdrop-blur rounded-xl p-5 flex flex-col gap-4">
     <h2 class="text-lg font-semibold text-center">DataCleaner</h2>
-    <button id="btn" class="w-full px-4 py-2 rounded bg-cyan-500 text-white disabled:opacity-50" disabled>
+
+    <button id="btn" class="w-full px-4 py-2 rounded
+                           bg-cyan-500 text-white disabled:opacity-50" disabled>
         Clean duplicates
     </button>
+
     <div id="status" class="min-h-[1.5rem] text-sm text-center break-all"></div>
 </div>
 
 <script>
-    (el => {
+    /* drag */
+    ((el) => {
         let sx = 0, sy = 0;
         el.addEventListener('pointerdown', e => {
             if (e.target.tagName === 'BUTTON') return;
             sx = e.clientX - el.offsetLeft;
             sy = e.clientY - el.offsetTop;
-            const move = ev => {
+            const mv = ev => {
                 el.style.left = (ev.clientX - sx) + 'px';
                 el.style.top = (ev.clientY - sy) + 'px';
             };
-            const up = () => window.removeEventListener('pointermove', move);
-            window.addEventListener('pointermove', move);
+            const up = () => window.removeEventListener('pointermove', mv);
+            window.addEventListener('pointermove', mv);
             window.addEventListener('pointerup', up, {once: true});
         });
     })(document.getElementById('card'));
@@ -53,26 +58,18 @@
     const status = m => (document.getElementById('status').textContent = m);
 
     const countExact = rows => {
-        const seen = new Map();
-        let dup = 0;
+        const mp = new Map();
+        let d = 0;
         rows.forEach(r => {
             const k = r.join('\u0000');
-            seen.has(k) ? dup++ : seen.set(k, 1)
+            mp.has(k) ? d++ : mp.set(k, 1)
         });
-        return dup;
-    };
-
-    const loadAuth0Lib = async () => {
-        if (window.auth0?.createAuth0Client) return;
-        const src = 'https://cdn.auth0.com/js/auth0-spa-js/2.0/auth0-spa-js.production.js';
-        const code = await fetch(src).then(r => r.text());
-        eval(code);
+        return d;
     };
 
     window.addEventListener('DOMContentLoaded', async () => {
         let auth0 = null;
         try {
-            await loadAuth0Lib();
             auth0 = await window.auth0.createAuth0Client({
                 domain: AUTH0_DOMAIN,
                 clientId: AUTH0_CLIENT,
@@ -111,8 +108,8 @@
                         const {confirmed = [], candidates = []} = await res.json();
                         status(`Exact: ${confirmed.length} • Possible: ${candidates.length}`);
 
-                        const dupRows = [...new Set(confirmed.flat())];
-                        if (dupRows.length) google.script.run.highlightExactRows(dupRows);
+                        const dup = [...new Set(confirmed.flat())];
+                        if (dup.length) google.script.run.highlightExactRows(dup);
 
                     } catch (err) {
                         status(`Local exact duplicates: ${countExact(rows)} (${err.message})`);
