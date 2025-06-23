@@ -1,12 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <script src="https://cdn.tailwindcss.com/3.4.4"></script>
 
-    <script>
-        <?!= HtmlService.createHtmlOutputFromFile('auth0-lib').getContent(); ?>
-    </script>
+    <?!= HtmlService.createHtmlOutputFromFile('auth0-lib').getContent(); ?>
 
     <style>
         body {
@@ -22,17 +20,17 @@
 </head>
 
 <body>
-<div id="card"
-     class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-80 bg-white/90 backdrop-blur rounded-xl p-5 flex flex-col gap-4">
+<div id="card" class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-80
+                         bg-white/90 backdrop-blur rounded-xl p-5 flex flex-col gap-4">
     <h2 class="text-lg font-semibold text-center">DataCleaner</h2>
-    <button id="btn" class="w-full px-4 py-2 rounded bg-cyan-500 text-white disabled:opacity-50" disabled>Clean
-        duplicates
+    <button id="btn" class="w-full px-4 py-2 rounded bg-cyan-500 text-white disabled:opacity-50" disabled>
+        Clean duplicates
     </button>
     <div id="status" class="min-h-[1.5rem] text-sm text-center break-all"></div>
 </div>
 
 <script>
-    (function (el) {
+    (el => {
         let sx = 0, sy = 0;
         el.addEventListener('pointerdown', e => {
             if (e.target.tagName === 'BUTTON') return;
@@ -54,32 +52,45 @@
     const API_BASE = 'https://cleaner-132616592036.us-central1.run.app/api/v1';
 
     const btn = document.getElementById('btn');
-    const status = m => document.getElementById('status').textContent = m;
+    const status = msg => (document.getElementById('status').textContent = msg);
+
     const countExact = rows => {
-        const s = new Map();
-        let d = 0;
+        const seen = new Map();
+        let dup = 0;
         rows.forEach(r => {
             const k = r.join('\u0000');
-            s.has(k) ? d++ : s.set(k, 1);
+            seen.has(k) ? dup++ : seen.set(k, 1);
         });
-        return d;
+        return dup;
     };
 
-    async function init() {
+    /** ждём, пока библиотека появится */
+    const waitForAuth0 = () => new Promise(res => {
+        const poll = setInterval(() => {
+            if (window.auth0?.createAuth0Client) {
+                clearInterval(poll);
+                res();
+            }
+        }, 50);
+    });
+
+    window.addEventListener('DOMContentLoaded', async () => {
         let auth0 = null;
         try {
-            if (!window.auth0?.createAuth0Client) throw new Error('Auth0 script blocked');
+            await waitForAuth0();
             auth0 = await window.auth0.createAuth0Client({
                 domain: AUTH0_DOMAIN,
                 clientId: AUTH0_CLIENT,
-                authorizationParams: {audience: AUTH0_AUDIENCE, redirect_uri: window.location.origin},
+                authorizationParams: {
+                    audience: AUTH0_AUDIENCE,
+                    redirect_uri: window.location.origin
+                },
                 cacheLocation: 'memory'
             });
             status('Auth0 ready');
         } catch (e) {
-            status('Auth0 init failed – local mode (' + e.message + ')');
+            status(`Auth0 init failed – local mode (${e.message})`);
         }
-
         btn.disabled = false;
 
         btn.onclick = () => {
@@ -89,22 +100,30 @@
                 .withSuccessHandler(async rows => {
                     try {
                         if (!auth0) throw new Error('Auth0 unavailable');
-                        status('Rows: ' + rows.length + ' • contacting API…');
-                        if (!(await auth0.isAuthenticated())) await auth0.loginWithPopup();
+                        status(`Rows: ${rows.length} • contacting API…`);
+
+                        if (!(await auth0.isAuthenticated()))
+                            await auth0.loginWithPopup();
+
                         const jwt = await auth0.getTokenSilently();
 
-                        const res = await fetch(API_BASE + '/sheets/duplicates', {
+                        const res = await fetch(`${API_BASE}/sheets/duplicates`, {
                             method: 'POST',
-                            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt},
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${jwt}`
+                            },
                             body: JSON.stringify({rows})
                         });
-                        if (!res.ok) throw new Error('API ' + res.status);
+                        if (!res.ok) throw new Error(`API ${res.status}`);
                         const {confirmed = [], candidates = []} = await res.json();
-                        status('Exact: ' + confirmed.length + ' • Possible: ' + candidates.length);
-                        const dup = [...new Set(confirmed.flat())];
-                        if (dup.length) google.script.run.highlightExactRows(dup);
+                        status(`Exact: ${confirmed.length} • Possible: ${candidates.length}`);
+
+                        const dupRows = [...new Set(confirmed.flat())];
+                        if (dupRows.length) google.script.run.highlightExactRows(dupRows);
+
                     } catch (err) {
-                        status('Local exact duplicates: ' + countExact(rows) + ' (' + err.message + ')');
+                        status(`Local exact duplicates: ${countExact(rows)} (${err.message})`);
                     } finally {
                         btn.disabled = false;
                     }
@@ -115,9 +134,7 @@
                 })
                 .getActiveRangeValues();
         };
-    }
-
-    init();
+    });
 </script>
 </body>
 </html>
