@@ -6,10 +6,13 @@ function onOpen() {
 }
 
 function openDataCleaner() {
-    SpreadsheetApp.getUi().showModelessDialog(
-        HtmlService.createHtmlOutputFromFile('dialog')
-            .setWidth(620).setHeight(580),
-        'DataCleaner');
+  const html = HtmlService
+      .createTemplateFromFile('dialog')
+      .evaluate()
+      .setWidth(620)
+      .setHeight(580);
+
+  SpreadsheetApp.getUi().showModelessDialog(html, 'DataCleaner');
 }
 
 function getActiveRangeValues() {
