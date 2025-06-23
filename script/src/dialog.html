@@ -6,8 +6,8 @@
     <!-- Tailwind JIT CDN -->
     <script src="https://cdn.tailwindcss.com/3.4.4"></script>
 
-    <!-- Встроенная (CSP-дружелюбная) сборка auth0-spa-js -->
-    <script nonce="<?= HtmlService.getScriptNonce() ?>">
+    <!-- Локально встроенная библиотека auth0-spa-js -->
+    <script>
         <?!= HtmlService.createHtmlOutputFromFile('auth0-lib').getContent(); ?>
     </script>
 
@@ -25,7 +25,6 @@
 </head>
 
 <body>
-<!-- плавающая карточка -->
 <div id="card"
      class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-80
               bg-white/90 backdrop-blur rounded-xl p-5 flex flex-col gap-4">
@@ -41,12 +40,12 @@
          class="min-h-[1.5rem] text-sm text-center break-all"></div>
 </div>
 
-<script nonce="<?= HtmlService.getScriptNonce() ?>">
-    /* ---------- перетаскивание карточки ----------- */
+<script>
+    /* --- перетаскивание карточки --- */
     (function (el) {
         var sx = 0, sy = 0;
         el.addEventListener('pointerdown', function (e) {
-            if (e.target.tagName === 'BUTTON') return;          // не мешаем клику
+            if (e.target.tagName === 'BUTTON') return;
             sx = e.clientX - el.offsetLeft;
             sy = e.clientY - el.offsetTop;
 
@@ -62,35 +61,36 @@
         });
     })(document.getElementById('card'));
 
-    /* ---------- константы ---------- */
-    const AUTH0_DOMAIN = 'dev-rwjc4dah5ucs6nj8.us.auth0.com';
-    const AUTH0_CLIENT = '6R1ZGA6alWQHUmADoGgFL4ds0ibdBKNA';
-    const AUTH0_AUDIENCE = 'https://sheets-cleaner.api';
-    const API_BASE = 'https://cleaner-132616592036.us-central1.run.app/api/v1';
+    /* --- константы --- */
+    var AUTH0_DOMAIN = 'dev-rwjc4dah5ucs6nj8.us.auth0.com';
+    var AUTH0_CLIENT = '6R1ZGA6alWQHUmADoGgFL4ds0ibdBKNA';
+    var AUTH0_AUDIENCE = 'https://sheets-cleaner.api';
+    var API_BASE = 'https://cleaner-132616592036.us-central1.run.app/api/v1';
 
-    const btn = document.getElementById('btn');
-    const status = function (msg) {
+    var btn = document.getElementById('btn');
+    var status = function (msg) {
         document.getElementById('status').textContent = msg;
     };
 
-    /* локальный подсчёт точных дублей (fallback) */
     function countExact(rows) {
-        const seen = new Map();
-        let dup = 0;
-        rows.forEach(r => {
-            const k = r.join('\u0000');
-            if (seen.has(k)) dup++; else seen.set(k, 1);
+        var seen = {};
+        var dup = 0;
+        rows.forEach(function (r) {
+            var k = r.join('\u0000');
+            if (seen[k]) dup++; else seen[k] = true;
         });
         return dup;
     }
 
-    /* ---------- main ---------- */
-    window.addEventListener('DOMContentLoaded', async function () {
-        let auth0 = null;
+    /* --- main --- */
+    window.addEventListener('DOMContentLoaded', function () {
+        var auth0 = null;
+
         try {
-            if (!(window.auth0 && window.auth0.createAuth0Client))
+            if (!window.auth0 || !window.auth0.createAuth0Client)
                 throw new Error('Auth0 script blocked');
-            auth0 = await window.auth0.createAuth0Client({
+
+            window.auth0.createAuth0Client({
                 domain: AUTH0_DOMAIN,
                 clientId: AUTH0_CLIENT,
                 authorizationParams: {
@@ -98,8 +98,13 @@
                     redirect_uri: window.location.origin
                 },
                 cacheLocation: 'memory'
+            }).then(function (client) {
+                auth0 = client;
+                status('Auth0 ready');
+            })["catch"](function (e) {
+                status('Auth0 init failed – local mode (' + e.message + ')');
             });
-            status('Auth0 ready');
+
         } catch (e) {
             status('Auth0 init failed – local mode (' + e.message + ')');
         }
@@ -111,39 +116,47 @@
             status('Fetching range…');
 
             google.script.run
-                .withSuccessHandler(async function (rows) {
-                    try {
-                        if (!auth0) throw new Error('Auth0 unavailable');
+                .withSuccessHandler(function (rows) {
+                    (async function () {
+                        try {
+                            if (!auth0) throw new Error('Auth0 unavailable');
 
-                        status('Rows: ' + rows.length + ' • contacting API…');
+                            status('Rows: ' + rows.length + ' • contacting API…');
 
-                        const isAuth = auth0 && await auth0.isAuthenticated();
-                        if (!isAuth) await auth0.loginWithPopup();
+                            var isAuth = await auth0.isAuthenticated();
+                            if (!isAuth) await auth0.loginWithPopup();
 
-                        const jwt = await auth0.getTokenSilently();
+                            var jwt = await auth0.getTokenSilently();
 
-                        const res = await fetch(API_BASE + '/sheets/duplicates', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': 'Bearer ' + jwt
-                            },
-                            body: JSON.stringify({rows: rows})
-                        });
-                        if (!res.ok) throw new Error('API ' + res.status);
+                            var res = await fetch(API_BASE + '/sheets/duplicates', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': 'Bearer ' + jwt
+                                },
+                                body: JSON.stringify({rows: rows})
+                            });
 
-                        const {confirmed = [], candidates = []} = await res.json();
-                        status('Exact: ' + confirmed.length + ' • Possible: ' + candidates.length);
+                            if (!res.ok) throw new Error('API ' + res.status);
 
-                        const dupRows = Array.from(new Set(confirmed.flat()));
-                        if (dupRows.length) google.script.run.highlightExactRows(dupRows);
+                            var data = await res.json();
+                            var confirmed = data.confirmed || [];
+                            var candidates = data.candidates || [];
 
-                    } catch (err) {
-                        const exact = countExact(rows);
-                        status('Local exact duplicates: ' + exact + ' (' + err.message + ')');
-                    } finally {
-                        btn.disabled = false;
-                    }
+                            status('Exact: ' + confirmed.length +
+                                ' • Possible: ' + candidates.length);
+
+                            var dupRows = Array.from(new Set([].concat.apply([], confirmed)));
+                            if (dupRows.length)
+                                google.script.run.highlightExactRows(dupRows);
+
+                        } catch (err) {
+                            status('Local exact duplicates: ' +
+                                countExact(rows) + ' (' + err.message + ')');
+                        } finally {
+                            btn.disabled = false;
+                        }
+                    })();
                 })
                 .withFailureHandler(function (err) {
                     status(String(err));
