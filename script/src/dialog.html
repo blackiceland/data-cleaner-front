@@ -4,8 +4,6 @@
     <meta charset="utf-8">
     <script src="https://cdn.tailwindcss.com/3.4.4"></script>
 
-    <?!= HtmlService.createHtmlOutputFromFile('auth0-lib').getContent(); ?>
-
     <style>
         body {
             margin: 0;
@@ -52,32 +50,29 @@
     const API_BASE = 'https://cleaner-132616592036.us-central1.run.app/api/v1';
 
     const btn = document.getElementById('btn');
-    const status = msg => (document.getElementById('status').textContent = msg);
+    const status = m => (document.getElementById('status').textContent = m);
 
     const countExact = rows => {
         const seen = new Map();
         let dup = 0;
         rows.forEach(r => {
             const k = r.join('\u0000');
-            seen.has(k) ? dup++ : seen.set(k, 1);
+            seen.has(k) ? dup++ : seen.set(k, 1)
         });
         return dup;
     };
 
-    /** ждём, пока библиотека появится */
-    const waitForAuth0 = () => new Promise(res => {
-        const poll = setInterval(() => {
-            if (window.auth0?.createAuth0Client) {
-                clearInterval(poll);
-                res();
-            }
-        }, 50);
-    });
+    const loadAuth0Lib = async () => {
+        if (window.auth0?.createAuth0Client) return;
+        const src = 'https://cdn.auth0.com/js/auth0-spa-js/2.0/auth0-spa-js.production.js';
+        const code = await fetch(src).then(r => r.text());
+        eval(code);
+    };
 
     window.addEventListener('DOMContentLoaded', async () => {
         let auth0 = null;
         try {
-            await waitForAuth0();
+            await loadAuth0Lib();
             auth0 = await window.auth0.createAuth0Client({
                 domain: AUTH0_DOMAIN,
                 clientId: AUTH0_CLIENT,
@@ -101,10 +96,7 @@
                     try {
                         if (!auth0) throw new Error('Auth0 unavailable');
                         status(`Rows: ${rows.length} • contacting API…`);
-
-                        if (!(await auth0.isAuthenticated()))
-                            await auth0.loginWithPopup();
-
+                        if (!(await auth0.isAuthenticated())) await auth0.loginWithPopup();
                         const jwt = await auth0.getTokenSilently();
 
                         const res = await fetch(`${API_BASE}/sheets/duplicates`, {
