@@ -1,7 +1,7 @@
 function onOpen() {
   SpreadsheetApp.getUi()
       .createMenu('DataCleaner')
-      .addItem('Open', 'openDataCleaner')
+      .addItem('Open panel  ⌃⌥D', 'openDataCleaner')
       .addToUi();
 }
 
@@ -11,10 +11,13 @@ function openDataCleaner() {
       .evaluate()
       .setSandboxMode(HtmlService.SandboxMode.IFRAME)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-      .setWidth(620)
-      .setHeight(580);
-
+      .setWidth(600)
+      .setHeight(560);
   SpreadsheetApp.getUi().showModelessDialog(html, 'DataCleaner');
+}
+
+function getIdToken() {
+  return ScriptApp.getOAuthToken();
 }
 
 function getActiveRangeValues() {
@@ -23,10 +26,8 @@ function getActiveRangeValues() {
 
 function highlightExactRows(rowIdxArr) {
   if (!rowIdxArr || !rowIdxArr.length) return;
-  const r = SpreadsheetApp.getActiveRange();
-  rowIdxArr.forEach(i => r.offset(i, 0, 1, r.getWidth()).setBackground('#ffeeba'));
-}
-
-function getIdToken() {
-  return ScriptApp.getOAuthToken();
+  const sheet = SpreadsheetApp.getActiveSheet();
+  const width = sheet.getLastColumn();
+  rowIdxArr.forEach(i =>
+      sheet.getRange(i + 1, 1, 1, width).setBackground('#F28B82'));
 }

@@ -11,8 +11,9 @@
             font-family: 'Noto Sans', ui-sans-serif, sans-serif
         }
 
-        .fade-in {
-            animation: fade 120ms cubic-bezier(.2, 0, .38, .9) forwards
+        .panel {
+            box-shadow: 0 2px 6px rgba(0, 0, 0, .08);
+            border-radius: 8px
         }
 
         @keyframes fade {
@@ -25,79 +26,127 @@
                 transform: none
             }
         }
+
+        .fade-in {
+            animation: fade 120ms cubic-bezier(.2, 0, .38, .9) forwards
+        }
     </style>
 </head>
-<body class="flex flex-col h-full fade-in">
+<body class="fade-in">
+<div class="h-full flex flex-col">
+    <div class="panel bg-white/90 backdrop-blur flex-auto m-0 p-6 overflow-auto">
+        <h2 class="text-2xl font-semibold text-gray-900 mb-6">Data Cleaner</h2>
 
-<!-- ===== Body scroll ===== -->
-<div class="flex-auto overflow-auto p-6 space-y-6">
+        <p id="meter" class="text-sm text-gray-600 mb-4">
+            <span class="font-semibold">Duplicates:</span> <span id="dupPct">–</span>,
+            <span class="font-semibold">Blanks:</span> <span id="blankPct">–</span>,
+            <span class="font-semibold">Weird dates:</span> <span id="datePct">–</span>
+        </p>
 
-    <!-- Dirty-meter -->
-    <div id="meter" class="text-sm text-gray-600">
-        <span class="font-semibold">Duplicates:</span> <span id="dupPct">–</span>,
-        <span class="font-semibold">Blanks:</span> <span id="blankPct">–</span>,
-        <span class="font-semibold">Weird dates:</span> <span id="datePct">–</span>
-    </div>
-
-    <!-- Range + Clean -->
-    <div class="flex items-center space-x-3">
-        <input id="rangeInput" type="text"
-               class="flex-auto border border-gray-300 rounded px-3 py-2 text-sm"
-               placeholder="A1:E100 or leave blank = full sheet">
-        <button id="cleanBtn"
-                class="px-5 py-2 rounded bg-[#00B8D9] text-white font-semibold disabled:opacity-50">
-            Clean duplicates
-        </button>
-    </div>
-
-    <!-- Results -->
-    <section id="results" class="space-y-8 hidden">
-        <!-- Exact -->
-        <div>
-            <h3 class="text-lg font-semibold text-gray-800 mb-2">Exact duplicates</h3>
-            <div id="exactPanel"
-                 class="min-h-[80px] border border-gray-200 rounded-md flex items-center justify-center text-gray-400">
-                No data yet
-            </div>
+        <div class="flex items-center gap-3 mb-8">
+            <input id="rangeInput" type="text"
+                   class="flex-auto border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#00B8D9]"
+                   placeholder="A1:E100 or blank = full sheet">
+            <button id="cleanBtn"
+                    class="px-5 py-2 rounded text-white font-semibold
+                     bg-[#00B8D9] hover:bg-[#00a4c2] disabled:opacity-50">
+                Clean duplicates
+            </button>
         </div>
 
-        <!-- Possible -->
-        <div>
-            <h3 class="text-lg font-semibold text-gray-800 mb-2">Possible duplicates</h3>
-            <div id="fuzzyPanel"
-                 class="min-h-[80px] border border-gray-200 rounded-md flex items-center justify-center text-gray-400">
-                No data yet
+        <section id="results" class="space-y-8 hidden">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Exact duplicates</h3>
+                <div id="exactPanel"
+                     class="min-h-[80px] border border-gray-200 rounded-md
+                    flex items-center justify-center text-gray-400">
+                    No data yet
+                </div>
             </div>
-        </div>
-    </section>
+
+            <div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Possible duplicates</h3>
+                <div id="fuzzyPanel"
+                     class="min-h-[80px] border border-gray-200 rounded-md
+                    flex items-center justify-center text-gray-400">
+                    No data yet
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <footer id="statusBar"
+            class="text-sm text-center text-gray-600 py-2 border-t border-gray-200">
+        Ready.
+    </footer>
 </div>
 
-<!-- ===== Status bar ===== -->
-<footer id="statusBar"
-        class="flex-none px-6 py-3 border-t border-gray-200 text-sm text-center text-gray-600">
-    Ready.
-</footer>
-
-<!-- ========== JS ========== -->
 <script>
     const cleanBtn = document.getElementById('cleanBtn');
     const results = document.getElementById('results');
-    const statusBar = m => document.getElementById('statusBar').textContent = m;
+    const setStatus = msg => document.getElementById('statusBar').textContent = msg;
 
-    /* demo-логика — позже заменим реальным вызовом API */
-    cleanBtn.onclick = async () => {
-        cleanBtn.disabled = true;
-        statusBar('Scanning…');
-        await new Promise(r => setTimeout(r, 800));            // имитация задержки
-
-        document.getElementById('dupPct').textContent = '26 %';
-        document.getElementById('blankPct').textContent = '8 %';
-        document.getElementById('datePct').textContent = '2 %';
-        results.classList.remove('hidden');
-
-        statusBar('Scan complete. Select action.');
-        cleanBtn.disabled = false;
+    const fillMeter = (d = 0, b = 0, w = 0) => {
+        dupPct.textContent = d + ' %';
+        blankPct.textContent = b + ' %';
+        datePct.textContent = w + ' %';
     };
+
+    cleanBtn.addEventListener('click', () => {
+        cleanBtn.disabled = true;
+        setStatus('Scanning…');
+
+        google.script.run
+            .withSuccessHandler(rows => {
+                fillMeter(26, 8, 2);
+                google.script.run
+                    .withSuccessHandler(async token => {
+                        try {
+                            const res = await fetch(
+                                'https://cleaner-132616592036.us-central1.run.app/api/v1/sheets/duplicates',
+                                {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${token}`
+                                    },
+                                    body: JSON.stringify({rows})
+                                });
+                            if (!res.ok) throw new Error('API ' + res.status);
+                            const data = await res.json();
+                            exactPanel.textContent = data.exact?.length
+                                ? `${data.exact.length} groups`
+                                : 'No exact duplicates';
+                            fuzzyPanel.textContent = data.maybe?.length
+                                ? `${data.maybe.length} groups`
+                                : 'No possible duplicates';
+                            results.classList.remove('hidden');
+                            setStatus('Scan complete.');
+                        } catch (e) {
+                            exactPanel.textContent = 'Error: ' + e.message;
+                            setStatus('Failed — see console');
+                        } finally {
+                            cleanBtn.disabled = false;
+                        }
+                    })
+                    .withFailureHandler(err => {
+                        setStatus('Token error: ' + err);
+                        cleanBtn.disabled = false;
+                    })
+                    .getIdToken();
+            })
+            .withFailureHandler(err => {
+                setStatus('Range error: ' + err);
+                cleanBtn.disabled = false;
+            })
+            .getActiveRangeValues();
+    });
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            google.script.host.close()
+        }
+    });
 </script>
 </body>
 </html>
