@@ -2,91 +2,134 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>DataCleaner</title>
     <script src="https://cdn.tailwindcss.com/3.4.4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600&display=swap" rel="stylesheet">
     <style>
         body {
-            margin: 0;
-            font-family: ui-sans-serif, 'Noto Sans', sans-serif
+            font-family: 'Noto Sans', ui-sans-serif, sans-serif;
         }
 
-        #card {
-            box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
-            cursor: move
+        /* fade / slide анимации (100-150 мс) */
+        .fade-in {
+            animation: fade 120ms ease-out forwards;
+        }
+
+        @keyframes fade {
+            from {
+                opacity: 0;
+                transform: translateY(8px)
+            }
+            to {
+                opacity: 1;
+                transform: none
+            }
         }
     </style>
 </head>
+<body class="m-0 p-0">
+<!-- modeless-диалог -->
+<div id="panel" class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
+                     w-[600px] h-[560px] bg-white rounded-xl shadow-[0_2px_6px_rgba(0,0,0,0.15)]
+                     flex flex-col fade-in">
 
-<body>
-<div id="card" class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[560px]
-                     bg-white/90 backdrop-blur rounded-xl p-6 flex flex-col gap-4">
-    <h2 class="text-xl font-semibold text-center">DataCleaner</h2>
+    <!-- Header -->
+    <header class="flex-none px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <h2 class="text-2xl font-semibold text-gray-800">Data Cleaner</h2>
+        <button id="closeBtn" class="text-gray-500 hover:text-gray-700">&times;</button>
+    </header>
 
-    <button id="btn" class="w-full px-4 py-2 rounded bg-cyan-500 text-white disabled:opacity-50" disabled>
-        Clean duplicates
-    </button>
+    <!-- Body scroll -->
+    <div class="flex-auto overflow-auto p-6 space-y-6">
 
-    <div id="status" class="min-h-[1.5rem] text-sm text-center break-all"></div>
+        <!-- Dirty-meter -->
+        <div id="meter" class="text-sm text-gray-600">
+            <span class="font-semibold">Duplicates: </span><span id="dupPct">–</span>,
+            <span class="font-semibold">Blanks: </span><span id="blankPct">–</span>,
+            <span class="font-semibold">Weird dates: </span><span id="datePct">–</span>
+        </div>
+
+        <!-- Range + Clean -->
+        <div class="flex items-center space-x-3">
+            <input id="rangeInput" type="text" class="flex-auto border border-gray-300 rounded px-3 py-2 text-sm"
+                   placeholder="A1:E100 or leave blank = full sheet">
+            <button id="cleanBtn"
+                    class="px-5 py-2 rounded bg-[#00B8D9] text-white font-semibold disabled:opacity-50">
+                Clean duplicates
+            </button>
+        </div>
+
+        <!-- Results -->
+        <section id="results" class="space-y-8 hidden">
+            <!-- Exact -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Exact duplicates</h3>
+                <div id="exactPanel" class="min-h-[80px] border border-gray-200 rounded-md
+                                 flex items-center justify-center text-gray-400">
+                    No data yet
+                </div>
+            </div>
+
+            <!-- Possible -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Possible duplicates</h3>
+                <div id="fuzzyPanel" class="min-h-[80px] border border-gray-200 rounded-md
+                                 flex items-center justify-center text-gray-400">
+                    No data yet
+                </div>
+            </div>
+        </section>
+
+    </div><!-- /body -->
+
+    <!-- Footer status -->
+    <footer id="statusBar" class="flex-none px-6 py-3 border-t border-gray-200 text-sm text-center text-gray-600">
+        Ready.
+    </footer>
 </div>
 
+<!-- ========== JS ========== -->
 <script>
-    ((el) => {
+    /* ——— drag-move (по хедеру) ——— */
+    (function enableDrag(el, handle) {
         let sx = 0, sy = 0;
-        el.addEventListener('pointerdown', e => {
-            if (e.target.tagName === 'BUTTON') return;
+        handle.addEventListener('pointerdown', e => {
             sx = e.clientX - el.offsetLeft;
             sy = e.clientY - el.offsetTop;
             const mv = ev => {
                 el.style.left = (ev.clientX - sx) + 'px';
                 el.style.top = (ev.clientY - sy) + 'px';
             };
-            const up = () => window.removeEventListener('pointermove', mv);
             window.addEventListener('pointermove', mv);
-            window.addEventListener('pointerup', up, {once: true});
-        })
-    })(document.getElementById('card'));
-
-    const API_BASE = 'https://cleaner-132616592036.us-central1.run.app/api/v1';
-    const btn = document.getElementById('btn');
-    const status = m => (document.getElementById('status').textContent = m);
-
-    async function getToken() {
-        return new Promise(r => google.script.run.withSuccessHandler(r).getIdToken());
-    }
-
-    async function callApi(rows) {
-        const token = await getToken();
-        console.log('DBG token', token.slice(0,40), '… len', token.length);
-        const res = await fetch(`${API_BASE}/sheets/duplicates`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-            body: JSON.stringify({rows})
+            window.addEventListener('pointerup', () => window.removeEventListener('pointermove', mv), {once: true});
         });
-        if (res.status === 401) return callApi(rows);
-        if (!res.ok) throw new Error(res.status);
-        return res.json();
-    }
+    })(document.getElementById('panel'), document.querySelector('header'));
 
-    window.addEventListener('DOMContentLoaded', () => {
-        btn.disabled = false;
-        btn.onclick = () => {
-            btn.disabled = true;
-            status('Fetching range…');
-            google.script.run.withSuccessHandler(async rows => {
-                try {
-                    status(`Rows: ${rows.length} • contacting API…`);
-                    const {confirmed = [], candidates = []} = await callApi(rows);
-                    status(`Exact: ${confirmed.length} • Possible: ${candidates.length}`);
-                    const dup = [...new Set(confirmed.flat())];
-                    if (dup.length) google.script.run.highlightExactRows(dup);
-                } catch (e) {
-                    status(e.message);
-                } finally {
-                    btn.disabled = false;
-                }
-            }).getActiveRangeValues();
-        };
-    });
+    /* ——— элементы ——— */
+    const cleanBtn = document.getElementById('cleanBtn');
+    const statusBar = m => document.getElementById('statusBar').textContent = m;
+    const resultsSec = document.getElementById('results');
+
+    /* ——— fake scan ——— (до подключения API) */
+    cleanBtn.onclick = async () => {
+        cleanBtn.disabled = true;
+        statusBar('Scanning…');
+
+        // TODO: google.script.run.getActiveRangeValues ...
+        await new Promise(r => setTimeout(r, 800));          // имитация
+
+        // показать подсчёт
+        document.getElementById('dupPct').textContent = '26 %';
+        document.getElementById('blankPct').textContent = '8 %';
+        document.getElementById('datePct').textContent = '2 %';
+        resultsSec.classList.remove('hidden');
+
+        statusBar('Scan complete. Select action.');
+        cleanBtn.disabled = false;
+    };
+
+    /* Close button collapses окно (позже превратим в mini-bar) */
+    document.getElementById('closeBtn').onclick = () => google.script.host.close();
+
 </script>
 </body>
 </html>
