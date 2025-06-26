@@ -28,5 +28,5 @@ function highlightExactRows(rowIdxArr) {
 }
 
 function getIdToken() {
-  return ScriptApp.getOAuthToken();
+  return ScriptApp.getIdentityToken('https://cleaner-132616592036.us-central1.run.app');
 }
