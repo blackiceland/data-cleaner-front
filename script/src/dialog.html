@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&display=swap" rel="stylesheet">
@@ -7,37 +7,42 @@
     <style>
         body {
             margin: 0;
-            height: 100%;
-            font-family: 'Noto Sans', ui-sans-serif, sans-serif;
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-            padding: 32px;
-            background: #fff
+            font-family: 'Noto Sans', ui-sans-serif, sans-serif
+        }
+
+        #card {
+            box-shadow: 0 2px 6px rgba(0, 0, 0, .08)
         }
     </style>
 </head>
 <body>
-<div id="metrics" class="text-sm text-gray-700">
-    Duplicates: –, Blanks: –, Weird dates: –
+<div id="card" class="w-full h-full p-8 bg-white rounded-xl flex flex-col gap-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-semibold">DataCleaner</h1>
+        <button onclick="google.script.host.close()" class="text-xl">&times;</button>
+    </div>
+
+    <div id="metrics" class="text-sm text-gray-700">
+        Duplicates: – , Blanks: – , Weird dates: –
+    </div>
+
+    <div class="flex gap-4">
+        <input id="range" class="flex-1 border rounded px-3 py-2 text-sm" placeholder="A1:E100 or blank = full sheet">
+        <button id="run" class="px-5 py-2 bg-cyan-500 text-white rounded hover:opacity-90">Clean duplicates</button>
+    </div>
+
+    <section>
+        <h2 class="text-lg font-semibold mb-2">Exact duplicates</h2>
+        <div id="exact" class="border rounded p-4 text-center text-gray-400">No exact duplicates</div>
+    </section>
+
+    <section>
+        <h2 class="text-lg font-semibold mb-2">Possible duplicates</h2>
+        <div id="possible" class="border rounded p-4 text-center text-gray-400">No possible duplicates</div>
+    </section>
+
+    <div id="status" class="mt-auto text-center text-sm text-gray-700">Ready.</div>
 </div>
-
-<div class="flex gap-4">
-    <input id="range" class="flex-1 border rounded px-3 py-2 text-sm" placeholder="A1:E100 or blank = full sheet">
-    <button id="run" class="px-5 py-2 bg-cyan-500 text-white rounded hover:opacity-90">Clean duplicates</button>
-</div>
-
-<section>
-    <h2 class="text-lg font-semibold mb-2">Exact duplicates</h2>
-    <div id="exact" class="border rounded p-4 text-center text-gray-400">No exact duplicates</div>
-</section>
-
-<section>
-    <h2 class="text-lg font-semibold mb-2">Possible duplicates</h2>
-    <div id="possible" class="border rounded p-4 text-center text-gray-400">No possible duplicates</div>
-</section>
-
-<div id="status" class="mt-auto text-center text-sm text-gray-700">Ready.</div>
 
 <script>
     const API = 'https://cleaner-132616592036.us-central1.run.app/api/v1';
@@ -49,10 +54,11 @@
     };
 
     function callApi(token) {
+        const payload = {rows: 'SCAN'};
         fetch(`${API}/sheets/duplicates`, {
             method: 'POST',
             headers: {Authorization: `Bearer ${token}`},
-            body: JSON.stringify({rows: 'SCAN'})
+            body: JSON.stringify(payload)
         })
             .then(r => r.json())
             .then(render)
@@ -61,14 +67,20 @@
     }
 
     function render(res) {
-        document.getElementById('metrics').textContent = `Duplicates: ${res.metrics.dup}% , Blanks: ${res.metrics.blank}% , Weird dates: ${res.metrics.date}%`;
-        document.getElementById('exact').textContent = res.exact.length ? `${res.exact.length} groups` : 'No exact duplicates';
-        document.getElementById('possible').textContent = res.maybe.length ? `${res.maybe.length} groups` : 'No possible duplicates';
+        document.getElementById('metrics').textContent =
+            `Duplicates: ${res.metrics.dup}% , Blanks: ${res.metrics.blank}% , Weird dates: ${res.metrics.date}%`;
+
+        const exact = document.getElementById('exact');
+        exact.textContent = res.exact.length ? `${res.exact.length} groups` : 'No exact duplicates';
+
+        const poss = document.getElementById('possible');
+        poss.textContent = res.maybe.length ? `${res.maybe.length} groups` : 'No possible duplicates';
+
         setStatus('Scan complete.');
     }
 
-    function setStatus(m) {
-        document.getElementById('status').textContent = m;
+    function setStatus(msg) {
+        document.getElementById('status').textContent = msg;
     }
 </script>
 </body>
