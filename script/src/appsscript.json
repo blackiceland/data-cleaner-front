@@ -6,5 +6,19 @@
     "https://www.googleapis.com/auth/spreadsheets.currentonly",
     "https://www.googleapis.com/auth/script.container.ui",
     "https://www.googleapis.com/auth/script.external_request"
-  ]
+  ],
+  "addOns": {
+    "common": {
+      "name": "DataCleaner",
+      "logoUrl": "https://www.gstatic.com/images/branding/product/1x/sheets_2020q4_48dp.png",
+      "layoutProperties": {
+        "primaryColor": "#00B8D9"
+      },
+      "useLocaleFromApp": true,
+      "homepageTrigger": {
+        "runFunction": "openDataCleaner"
+      }
+    },
+    "sheets": {}
+  }
 }
