@@ -6,15 +6,15 @@ function onOpen() {
 }
 
 function openDataCleaner() {
-  const html = HtmlService.createTemplateFromFile('dialog')
-      .evaluate()
-      .setSandboxMode(HtmlService.SandboxMode.IFRAME)
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+  const html = HtmlService
+      .createHtmlOutputFromFile('dialog')
       .setWidth(640)
       .setHeight(600)
-      .setTitle('DataCleaner');
+      .setTitle('DataCleaner')
+      .setSandboxMode(HtmlService.SandboxMode.IFRAME)
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
-  SpreadsheetApp.getUi().showModelessDialog(html, 'DataCleaner');
+  SpreadsheetApp.getUi().showModelessDialog(html);
 }
 
 function getIdToken() {
