@@ -6,14 +6,15 @@ function onOpen() {
 }
 
 function openDataCleaner() {
-  HtmlService.createTemplateFromFile('dialog')
+  const html = HtmlService.createTemplateFromFile('dialog')
       .evaluate()
       .setSandboxMode(HtmlService.SandboxMode.IFRAME)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
       .setWidth(640)
       .setHeight(600)
-      .setTitle('DataCleaner')
-      .showModelessDialog(SpreadsheetApp.getUi());
+      .setTitle('DataCleaner');
+
+  SpreadsheetApp.getUi().showModelessDialog(html, 'DataCleaner');
 }
 
 function getIdToken() {
