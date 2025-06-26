@@ -28,5 +28,5 @@ function highlightExactRows(rowIdxArr) {
 }
 
 function getIdToken() {
-  return ScriptApp.getIdentityToken();
+  return ScriptApp.getOAuthToken();
 }
