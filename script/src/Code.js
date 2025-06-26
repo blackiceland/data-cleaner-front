@@ -26,3 +26,7 @@ function highlightExactRows(rowIdxArr) {
   const r = SpreadsheetApp.getActiveRange();
   rowIdxArr.forEach(i => r.offset(i, 0, 1, r.getWidth()).setBackground('#ffeeba'));
 }
+
+function getIdToken() {
+  return ScriptApp.getOAuthToken();
+}
