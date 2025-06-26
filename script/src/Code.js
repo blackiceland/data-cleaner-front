@@ -9,12 +9,9 @@ function openDataCleaner() {
   const html = HtmlService
       .createHtmlOutputFromFile('dialog')
       .setWidth(640)
-      .setHeight(600)
-      .setTitle('DataCleaner')
-      .setSandboxMode(HtmlService.SandboxMode.IFRAME)
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+      .setHeight(600);
 
-  SpreadsheetApp.getUi().showModelessDialog(html);
+  SpreadsheetApp.getUi().showModelessDialog(html, 'DataCleaner');
 }
 
 function getIdToken() {
