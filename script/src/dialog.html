@@ -3,7 +3,6 @@
 <head>
     <meta charset="utf-8">
     <title>DataCleaner</title>
-
     <script src="https://cdn.tailwindcss.com/3.4.4"></script>
     <style>
         body {
@@ -20,8 +19,8 @@
 
 <body>
 <div id="card" class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[560px]
-                     bg-white rounded-xl p-5 flex flex-col gap-4">
-    <h2 class="text-lg font-semibold text-center">DataCleaner</h2>
+                     bg-white/90 backdrop-blur rounded-xl p-6 flex flex-col gap-4">
+    <h2 class="text-xl font-semibold text-center">DataCleaner</h2>
 
     <button id="btn" class="w-full px-4 py-2 rounded bg-cyan-500 text-white disabled:opacity-50" disabled>
         Clean duplicates
@@ -39,32 +38,31 @@
             sy = e.clientY - el.offsetTop;
             const mv = ev => {
                 el.style.left = (ev.clientX - sx) + 'px';
-                el.style.top = (ev.clientY - sy) + 'px'
+                el.style.top = (ev.clientY - sy) + 'px';
             };
             const up = () => window.removeEventListener('pointermove', mv);
             window.addEventListener('pointermove', mv);
             window.addEventListener('pointerup', up, {once: true});
-        });
+        })
     })(document.getElementById('card'));
 
     const API_BASE = 'https://cleaner-132616592036.us-central1.run.app/api/v1';
-
     const btn = document.getElementById('btn');
     const status = m => (document.getElementById('status').textContent = m);
 
-    async function idToken() {
-        return new Promise(res => google.script.run.withSuccessHandler(res).getIdToken());
+    async function getToken() {
+        return new Promise(r => google.script.run.withSuccessHandler(r).getIdToken());
     }
 
     async function callApi(rows) {
-        const token = await idToken();
-        const res = await fetch(`${API_BASE}/sheets/duplicates`, {
+        const token = await getToken();
+        const res = await fetch(`${API_BASE}/clean`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
             body: JSON.stringify({rows})
         });
-        if (res.status === 401) return callApi(rows);     // auto-refresh
-        if (!res.ok) throw new Error(`API ${res.status}`);
+        if (res.status === 401) return callApi(rows);
+        if (!res.ok) throw new Error(res.status);
         return res.json();
     }
 
