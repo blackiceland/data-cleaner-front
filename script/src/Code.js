@@ -1,19 +1,18 @@
 function onOpen() {
   SpreadsheetApp.getUi()
       .createMenu('DataCleaner')
-      .addItem('Open', 'openDataCleaner')
+      .addItem('Open panel  ⌃⌥D', 'openDataCleaner')
       .addToUi();
 }
 
 function openDataCleaner() {
-  const html = HtmlService.createTemplateFromFile('dialog')
+  const html = HtmlService
+      .createTemplateFromFile('dialog')
       .evaluate()
       .setSandboxMode(HtmlService.SandboxMode.IFRAME)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-      .setWidth(640)
-      .setHeight(600)
-      .setTitle('DataCleaner');
-
+      .setWidth(600)
+      .setHeight(560);
   SpreadsheetApp.getUi().showModelessDialog(html, 'DataCleaner');
 }
 
