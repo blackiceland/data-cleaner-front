@@ -1,7 +1,7 @@
 function onOpen() {
   SpreadsheetApp.getUi()
       .createMenu('DataCleaner')
-      .addItem('Open panel  ⌃⌥D', 'openDataCleaner')
+      .addItem('Open', 'openDataCleaner')
       .addToUi();
 }
 
