@@ -5,13 +5,14 @@
     <script src="https://cdn.tailwindcss.com/3.4.4"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Noto Sans', ui-sans-serif, sans-serif;
+        html, body {
+            height: 100%;
+            margin: 0;
+            font-family: 'Noto Sans', ui-sans-serif, sans-serif
         }
 
-        /* fade / slide анимации (100-150 мс) */
         .fade-in {
-            animation: fade 120ms ease-out forwards;
+            animation: fade 120ms cubic-bezier(.2, 0, .38, .9) forwards
         }
 
         @keyframes fade {
@@ -26,110 +27,77 @@
         }
     </style>
 </head>
-<body class="m-0 p-0">
-<!-- modeless-диалог -->
-<div id="panel" class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
-                     w-[600px] h-[560px] bg-white rounded-xl shadow-[0_2px_6px_rgba(0,0,0,0.15)]
-                     flex flex-col fade-in">
+<body class="flex flex-col h-full fade-in">
 
-    <!-- Header -->
-    <header class="flex-none px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-        <h2 class="text-2xl font-semibold text-gray-800">Data Cleaner</h2>
-        <button id="closeBtn" class="text-gray-500 hover:text-gray-700">&times;</button>
-    </header>
+<!-- ===== Body scroll ===== -->
+<div class="flex-auto overflow-auto p-6 space-y-6">
 
-    <!-- Body scroll -->
-    <div class="flex-auto overflow-auto p-6 space-y-6">
+    <!-- Dirty-meter -->
+    <div id="meter" class="text-sm text-gray-600">
+        <span class="font-semibold">Duplicates:</span> <span id="dupPct">–</span>,
+        <span class="font-semibold">Blanks:</span> <span id="blankPct">–</span>,
+        <span class="font-semibold">Weird dates:</span> <span id="datePct">–</span>
+    </div>
 
-        <!-- Dirty-meter -->
-        <div id="meter" class="text-sm text-gray-600">
-            <span class="font-semibold">Duplicates: </span><span id="dupPct">–</span>,
-            <span class="font-semibold">Blanks: </span><span id="blankPct">–</span>,
-            <span class="font-semibold">Weird dates: </span><span id="datePct">–</span>
+    <!-- Range + Clean -->
+    <div class="flex items-center space-x-3">
+        <input id="rangeInput" type="text"
+               class="flex-auto border border-gray-300 rounded px-3 py-2 text-sm"
+               placeholder="A1:E100 or leave blank = full sheet">
+        <button id="cleanBtn"
+                class="px-5 py-2 rounded bg-[#00B8D9] text-white font-semibold disabled:opacity-50">
+            Clean duplicates
+        </button>
+    </div>
+
+    <!-- Results -->
+    <section id="results" class="space-y-8 hidden">
+        <!-- Exact -->
+        <div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Exact duplicates</h3>
+            <div id="exactPanel"
+                 class="min-h-[80px] border border-gray-200 rounded-md flex items-center justify-center text-gray-400">
+                No data yet
+            </div>
         </div>
 
-        <!-- Range + Clean -->
-        <div class="flex items-center space-x-3">
-            <input id="rangeInput" type="text" class="flex-auto border border-gray-300 rounded px-3 py-2 text-sm"
-                   placeholder="A1:E100 or leave blank = full sheet">
-            <button id="cleanBtn"
-                    class="px-5 py-2 rounded bg-[#00B8D9] text-white font-semibold disabled:opacity-50">
-                Clean duplicates
-            </button>
+        <!-- Possible -->
+        <div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Possible duplicates</h3>
+            <div id="fuzzyPanel"
+                 class="min-h-[80px] border border-gray-200 rounded-md flex items-center justify-center text-gray-400">
+                No data yet
+            </div>
         </div>
-
-        <!-- Results -->
-        <section id="results" class="space-y-8 hidden">
-            <!-- Exact -->
-            <div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Exact duplicates</h3>
-                <div id="exactPanel" class="min-h-[80px] border border-gray-200 rounded-md
-                                 flex items-center justify-center text-gray-400">
-                    No data yet
-                </div>
-            </div>
-
-            <!-- Possible -->
-            <div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Possible duplicates</h3>
-                <div id="fuzzyPanel" class="min-h-[80px] border border-gray-200 rounded-md
-                                 flex items-center justify-center text-gray-400">
-                    No data yet
-                </div>
-            </div>
-        </section>
-
-    </div><!-- /body -->
-
-    <!-- Footer status -->
-    <footer id="statusBar" class="flex-none px-6 py-3 border-t border-gray-200 text-sm text-center text-gray-600">
-        Ready.
-    </footer>
+    </section>
 </div>
+
+<!-- ===== Status bar ===== -->
+<footer id="statusBar"
+        class="flex-none px-6 py-3 border-t border-gray-200 text-sm text-center text-gray-600">
+    Ready.
+</footer>
 
 <!-- ========== JS ========== -->
 <script>
-    /* ——— drag-move (по хедеру) ——— */
-    (function enableDrag(el, handle) {
-        let sx = 0, sy = 0;
-        handle.addEventListener('pointerdown', e => {
-            sx = e.clientX - el.offsetLeft;
-            sy = e.clientY - el.offsetTop;
-            const mv = ev => {
-                el.style.left = (ev.clientX - sx) + 'px';
-                el.style.top = (ev.clientY - sy) + 'px';
-            };
-            window.addEventListener('pointermove', mv);
-            window.addEventListener('pointerup', () => window.removeEventListener('pointermove', mv), {once: true});
-        });
-    })(document.getElementById('panel'), document.querySelector('header'));
-
-    /* ——— элементы ——— */
     const cleanBtn = document.getElementById('cleanBtn');
+    const results = document.getElementById('results');
     const statusBar = m => document.getElementById('statusBar').textContent = m;
-    const resultsSec = document.getElementById('results');
 
-    /* ——— fake scan ——— (до подключения API) */
+    /* demo-логика — позже заменим реальным вызовом API */
     cleanBtn.onclick = async () => {
         cleanBtn.disabled = true;
         statusBar('Scanning…');
+        await new Promise(r => setTimeout(r, 800));            // имитация задержки
 
-        // TODO: google.script.run.getActiveRangeValues ...
-        await new Promise(r => setTimeout(r, 800));          // имитация
-
-        // показать подсчёт
         document.getElementById('dupPct').textContent = '26 %';
         document.getElementById('blankPct').textContent = '8 %';
         document.getElementById('datePct').textContent = '2 %';
-        resultsSec.classList.remove('hidden');
+        results.classList.remove('hidden');
 
         statusBar('Scan complete. Select action.');
         cleanBtn.disabled = false;
     };
-
-    /* Close button collapses окно (позже превратим в mini-bar) */
-    document.getElementById('closeBtn').onclick = () => google.script.host.close();
-
 </script>
 </body>
 </html>
