@@ -35,14 +35,6 @@
 <body class="fade-in">
 <div class="h-full flex flex-col">
     <div class="panel relative bg-white/90 backdrop-blur flex-auto m-0 p-6 overflow-auto">
-        <!-- Header removed as requested -->
-
-        <p id="meter" class="text-sm text-gray-600 mb-4">
-            <span class="font-semibold">Duplicates:</span> <span id="dupPct">–</span>,
-            <span class="font-semibold">Blanks:</span> <span id="blankPct">–</span>,
-            <span class="font-semibold">Weird dates:</span> <span id="datePct">–</span>
-        </p>
-
         <!-- Range input + Scan button -->
         <div class="flex items-center gap-3 mb-3">
             <input id="rangeInput" type="text"
@@ -74,7 +66,7 @@
             </label>
         </div>
 
-        <!-- Spinner -->
+        <!-- Spinner overlay -->
         <div id="spinner" class="hidden absolute inset-0 flex items-center justify-center bg-white/70">
             <svg class="animate-spin h-16 w-16 text-[#00B8D9]" viewBox="0 0 24 24" fill="none">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -83,23 +75,26 @@
         </div>
 
         <!-- Results -->
-        <section id="results" class="space-y-8 hidden">
+        <section id="results" class="space-y-6 hidden">
             <div>
                 <h3 class="text-lg font-semibold text-gray-800 mb-2">Exact duplicates</h3>
                 <div id="exactPanel"
-                     class="min-h-[80px] border border-gray-200 rounded-md
-                            flex items-center justify-center text-gray-400">
+                     class="min-h-[80px] border border-gray-200 rounded-md flex items-center justify-center text-gray-400">
                     No data yet
                 </div>
             </div>
             <div>
                 <h3 class="text-lg font-semibold text-gray-800 mb-2">Possible duplicates</h3>
                 <div id="fuzzyPanel"
-                     class="min-h-[80px] border border-gray-200 rounded-md
-                            flex items-center justify-center text-gray-400">
+                     class="min-h-[80px] border border-gray-200 rounded-md flex items-center justify-center text-gray-400">
                     No data yet
                 </div>
             </div>
+            <!-- Run button -->
+            <button id="runBtn"
+                    class="hidden w-full py-2 rounded bg-[#00B8D9] text-white font-semibold hover:bg-[#00a4c2]">
+                Run action
+            </button>
         </section>
     </div>
 
@@ -110,98 +105,92 @@
 </div>
 
 <script>
-    /* element refs */
+    /* refs */
     const scanBtn = document.getElementById('scanBtn');
+    const runBtn = document.getElementById('runBtn');
     const rangeInput = document.getElementById('rangeInput');
     const hdrChk = document.getElementById('hdrChk');
     const results = document.getElementById('results');
     const spinner = document.getElementById('spinner');
-    const setStatus = msg => document.getElementById('statusBar').textContent = msg;
-    const fillMeter = (d = 0, b = 0, w = 0) => {
-        dupPct.textContent = d + ' %';
-        blankPct.textContent = b + ' %';
-        datePct.textContent = w + ' %';
-    };
+    const actionSel = document.getElementById('actionSel');
+    const setStatus = m => document.getElementById('statusBar').textContent = m;
 
     /* initial range */
-    google.script.run
-        .withFailureHandler(() => setStatus('Failed to get initial range'))
-        .withSuccessHandler(a1 => {
-            rangeInput.value = a1;
-        })
-        .getInitialRangeA1();
+    google.script.run.withSuccessHandler(a1 => {
+        rangeInput.value = a1;
+    }).getInitialRangeA1();
 
-    /* auto-update range when user changes selection */
+    /* auto-update range */
     let lastA1 = '';
     setInterval(() => {
-        google.script.run
-            .withSuccessHandler(a1 => {
-                if (a1 && a1 !== lastA1 && !rangeInput.dataset.manual) {
-                    lastA1 = a1;
-                    rangeInput.value = a1;
-                }
-            })
-            .withFailureHandler(() => {
-            })
-            .getActiveRangeA1();
+        google.script.run.withSuccessHandler(a1 => {
+            if (a1 && a1 !== lastA1 && !rangeInput.dataset.manual) {
+                lastA1 = a1;
+                rangeInput.value = a1;
+            }
+        }).getActiveRangeA1();
     }, 400);
-    rangeInput.addEventListener('input', () => {
-        rangeInput.dataset.manual = true;
-    });
-    rangeInput.addEventListener('blur', () => {
-        delete rangeInput.dataset.manual;
-    });
+    rangeInput.addEventListener('input', () => rangeInput.dataset.manual = true);
+    rangeInput.addEventListener('blur', () => delete rangeInput.dataset.manual);
 
-    const setScanning = on => {
-        scanBtn.disabled = on;
+    const setLoading = on => {
         spinner.classList.toggle('hidden', !on);
+        scanBtn.disabled = on;
+        runBtn.disabled = on;
     };
 
     /* Scan */
+    let lastExactRows = []; // хранит индексы exact для Run
     scanBtn.addEventListener('click', () => {
-        setScanning(true);
+        setLoading(true);
         setStatus('Scanning…');
-
-        google.script.run
-            .withSuccessHandler(rows => {
-                fillMeter(26, 8, 2);
-                google.script.run
-                    .withSuccessHandler(async token => {
-                        try {
-                            const res = await fetch(
-                                'https://cleaner-132616592036.us-central1.run.app/api/v1/sheets/duplicates',
-                                {
-                                    method: 'POST',
-                                    headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-                                    body: JSON.stringify({rows, hasHeaders: hdrChk.checked})
-                                });
-                            if (!res.ok) throw new Error('API ' + res.status);
-                            const data = await res.json();
-                            exactPanel.textContent = data.exact?.length ? `${data.exact.length} groups` : 'No exact duplicates';
-                            fuzzyPanel.textContent = data.maybe?.length ? `${data.maybe.length} groups` : 'No possible duplicates';
-                            results.classList.remove('hidden');
-                            setStatus('Scan complete.');
-                        } catch (e) {
-                            exactPanel.textContent = 'Error: ' + e.message;
-                            setStatus('Failed — see console');
-                        } finally {
-                            setScanning(false);
-                        }  // hide spinner
-                    })
-                    .withFailureHandler(err => {
-                        setStatus('Token error: ' + err);
-                        setScanning(false);
-                    })
-                    .getIdToken();
-            })
-            .withFailureHandler(err => {
-                setStatus('Range error: ' + err);
-                setScanning(false);
-            })
-            .getActiveRangeValues();
+        google.script.run.withSuccessHandler(rows => {
+            google.script.run.withSuccessHandler(async token => {
+                try {
+                    const res = await fetch('https://cleaner-132616592036.us-central1.run.app/api/v1/sheets/duplicates', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+                        body: JSON.stringify({rows, hasHeaders: hdrChk.checked, action: actionSel.value})
+                    });
+                    if (!res.ok) throw new Error('API ' + res.status);
+                    const data = await res.json();
+                    // mock panels
+                    exactPanel.textContent = data.exact?.length ? `${data.exact.length} groups` : 'No exact duplicates';
+                    fuzzyPanel.textContent = data.maybe?.length ? `${data.maybe.length} groups` : 'No possible duplicates';
+                    results.classList.remove('hidden');
+                    // prepare indices (простое предположение: data.exactRows)
+                    lastExactRows = data.exactRows || [];
+                    if (actionSel.value === 'HIGHLIGHT' && lastExactRows.length) {
+                        runBtn.textContent = `Run highlight ${lastExactRows.length} rows`;
+                        runBtn.classList.remove('hidden');
+                    } else {
+                        runBtn.classList.add('hidden');
+                    }
+                    setStatus('Scan complete.');
+                } catch (e) {
+                    setStatus('Error ' + e.message);
+                } finally {
+                    setLoading(false);
+                }
+            }).getIdToken();
+        }).getActiveRangeValues();
     });
 
-    /* Esc closes */
+    /* Run action (highlight only for now) */
+    runBtn.addEventListener('click', () => {
+        if (!lastExactRows.length) return;
+        setLoading(true);
+        setStatus('Applying…');
+        google.script.run.withSuccessHandler(() => {
+            setStatus(`${lastExactRows.length} rows highlighted`);
+            setLoading(false);
+        }).withFailureHandler(e => {
+            setStatus('Apps Script error');
+            setLoading(false);
+        })
+            .highlightExactRows(lastExactRows);
+    });
+
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
             google.script.host.close();
