@@ -43,8 +43,8 @@
             <span class="font-semibold">Weird dates:</span> <span id="datePct">–</span>
         </p>
 
-        <!-- Range + Scan -->
-        <div class="flex items-center gap-3 mb-4">
+        <!-- Range input + Scan button -->
+        <div class="flex items-center gap-3 mb-3">
             <input id="rangeInput" type="text"
                    class="flex-auto border border-gray-300 rounded px-3 py-2 text-sm
                           focus:outline-none focus:ring-1 focus:ring-[#00B8D9]"
@@ -55,6 +55,15 @@
                 Scan
             </button>
         </div>
+        <!-- Action dropdown -->
+        <select id="actionSel"
+                class="w-full mb-4 border border-gray-300 rounded px-3 py-2 text-sm
+                       focus:outline-none focus:ring-1 focus:ring-[#00B8D9]">
+            <option value="HIGHLIGHT" selected>Highlight duplicates</option>
+            <option value="DELETE">Delete duplicates</option>
+            <option value="MOVE">Move duplicates</option>
+            <option value="MARK">Mark duplicates</option>
+        </select>
 
         <!-- Options -->
         <div class="flex flex-col gap-2 mb-6">
