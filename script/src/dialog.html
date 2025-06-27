@@ -35,7 +35,6 @@
 <body class="fade-in">
 <div class="h-full flex flex-col">
     <div class="panel bg-white/90 backdrop-blur flex-auto m-0 p-6 overflow-auto">
-        <h2 class="text-2xl font-semibold text-gray-900 mb-6">Data Cleaner</h2>
 
         <p id="meter" class="text-sm text-gray-600 mb-4">
             <span class="font-semibold">Duplicates:</span> <span id="dupPct">–</span>,
@@ -43,6 +42,7 @@
             <span class="font-semibold">Weird dates:</span> <span id="datePct">–</span>
         </p>
 
+        <!-- Range + Use selection + Scan -->
         <div class="flex items-center gap-3 mb-4">
             <input id="rangeInput" type="text"
                    class="flex-auto border border-gray-300 rounded px-3 py-2 text-sm
@@ -53,13 +53,14 @@
                            hover:bg-gray-100 focus:outline-none">
                 Use selection
             </button>
-            <button id="cleanBtn"
+            <button id="scanBtn"
                     class="px-5 py-2 rounded text-white font-semibold
                            bg-[#00B8D9] hover:bg-[#00a4c2] disabled:opacity-50">
-                Clean duplicates
+                Scan
             </button>
         </div>
 
+        <!-- Options -->
         <div class="flex flex-col gap-2 mb-6">
             <label class="flex items-center gap-2">
                 <input id="hdrChk" type="checkbox"
@@ -68,6 +69,7 @@
             </label>
         </div>
 
+        <!-- Results (visible after Scan) -->
         <section id="results" class="space-y-8 hidden">
             <div>
                 <h3 class="text-lg font-semibold text-gray-800 mb-2">Exact duplicates</h3>
@@ -95,7 +97,8 @@
 </div>
 
 <script>
-    const cleanBtn = document.getElementById('cleanBtn');
+    /* element refs */
+    const scanBtn = document.getElementById('scanBtn');
     const useSelBtn = document.getElementById('useSelBtn');
     const rangeInput = document.getElementById('rangeInput');
     const hdrChk = document.getElementById('hdrChk');
@@ -107,6 +110,7 @@
         datePct.textContent = w + ' %';
     };
 
+    /* initial range */
     google.script.run
         .withFailureHandler(() => setStatus('Failed to get initial range'))
         .withSuccessHandler(a1 => {
@@ -114,6 +118,7 @@
         })
         .getInitialRangeA1();
 
+    /* Use selection */
     useSelBtn.addEventListener('click', () => {
         google.script.run
             .withFailureHandler(() => setStatus('Failed to get selection'))
@@ -125,8 +130,9 @@
             .getActiveRangeA1();
     });
 
-    cleanBtn.addEventListener('click', () => {
-        cleanBtn.disabled = true;
+    /* Scan */
+    scanBtn.addEventListener('click', () => {
+        scanBtn.disabled = true;
         setStatus('Scanning…');
 
         google.script.run
@@ -155,22 +161,23 @@
                             exactPanel.textContent = 'Error: ' + e.message;
                             setStatus('Failed — see console');
                         } finally {
-                            cleanBtn.disabled = false;
+                            scanBtn.disabled = false;
                         }
                     })
                     .withFailureHandler(err => {
                         setStatus('Token error: ' + err);
-                        cleanBtn.disabled = false;
+                        scanBtn.disabled = false;
                     })
                     .getIdToken();
             })
             .withFailureHandler(err => {
                 setStatus('Range error: ' + err);
-                cleanBtn.disabled = false;
+                scanBtn.disabled = false;
             })
             .getActiveRangeValues();
     });
 
+    /* Esc closes */
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
             google.script.host.close();
