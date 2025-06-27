@@ -42,17 +42,12 @@
             <span class="font-semibold">Weird dates:</span> <span id="datePct">–</span>
         </p>
 
-        <!-- Range + Use selection + Scan -->
+        <!-- Range + Scan -->
         <div class="flex items-center gap-3 mb-4">
             <input id="rangeInput" type="text"
                    class="flex-auto border border-gray-300 rounded px-3 py-2 text-sm
                           focus:outline-none focus:ring-1 focus:ring-[#00B8D9]"
                    placeholder="Select range…">
-            <button id="useSelBtn"
-                    class="px-3 py-2 rounded border border-gray-300 text-sm
-                           hover:bg-gray-100 focus:outline-none">
-                Use selection
-            </button>
             <button id="scanBtn"
                     class="px-5 py-2 rounded text-white font-semibold
                            bg-[#00B8D9] hover:bg-[#00a4c2] disabled:opacity-50">
@@ -99,7 +94,6 @@
 <script>
     /* element refs */
     const scanBtn = document.getElementById('scanBtn');
-    const useSelBtn = document.getElementById('useSelBtn');
     const rangeInput = document.getElementById('rangeInput');
     const hdrChk = document.getElementById('hdrChk');
     const results = document.getElementById('results');
@@ -118,16 +112,25 @@
         })
         .getInitialRangeA1();
 
-    /* Use selection */
-    useSelBtn.addEventListener('click', () => {
+    /* auto-update range when user changes selection */
+    let lastA1 = '';
+    setInterval(() => {
         google.script.run
-            .withFailureHandler(() => setStatus('Failed to get selection'))
             .withSuccessHandler(a1 => {
-                rangeInput.value = a1;
-                rangeInput.focus();
-                rangeInput.select();
+                if (a1 && a1 !== lastA1 && !rangeInput.dataset.manual) {
+                    lastA1 = a1;
+                    rangeInput.value = a1;
+                }
+            })
+            .withFailureHandler(() => {
             })
             .getActiveRangeA1();
+    }, 400);
+    rangeInput.addEventListener('input', () => {
+        rangeInput.dataset.manual = true;
+    });
+    rangeInput.addEventListener('blur', () => {
+        delete rangeInput.dataset.manual;
     });
 
     /* Scan */
@@ -137,7 +140,7 @@
 
         google.script.run
             .withSuccessHandler(rows => {
-                fillMeter(26, 8, 2);
+                fillMeter(26, 8, 2);               // stub
                 google.script.run
                     .withSuccessHandler(async token => {
                         try {
