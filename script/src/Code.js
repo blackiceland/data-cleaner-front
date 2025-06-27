@@ -31,3 +31,8 @@ function highlightExactRows(rowIdxArr) {
   rowIdxArr.forEach(i =>
       sheet.getRange(i + 1, 1, 1, width).setBackground('#F28B82'));
 }
+
+function getActiveRangeA1() {
+  return SpreadsheetApp.getActiveRange().getA1Notation();
+}
+
