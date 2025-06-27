@@ -104,6 +104,13 @@
     const useSelBtn = document.getElementById('useSelBtn');
     const rangeInput = document.getElementById('rangeInput');
 
+    google.script.run
+        .withFailureHandler(() => setStatus('Failed to get initial range'))
+        .withSuccessHandler(a1 => {
+            rangeInput.value = a1;
+        })
+        .getInitialRangeA1();
+
     useSelBtn.addEventListener('click', () => {
         google.script.run
             .withSuccessHandler(a1 => {

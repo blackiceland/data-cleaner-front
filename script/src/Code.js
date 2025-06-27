@@ -36,3 +36,11 @@ function getActiveRangeA1() {
   return SpreadsheetApp.getActiveRange().getA1Notation();
 }
 
+function getInitialRangeA1() {
+  const sel = SpreadsheetApp.getActiveRange();
+  if (sel.getNumRows() > 1 || sel.getNumColumns() > 1) {
+    return sel.getA1Notation();
+  }
+  return SpreadsheetApp.getActiveSheet().getDataRange().getA1Notation();
+}
+
