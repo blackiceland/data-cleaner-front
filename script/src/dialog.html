@@ -45,11 +45,19 @@
 
         <div class="flex items-center gap-3 mb-8">
             <input id="rangeInput" type="text"
-                   class="flex-auto border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#00B8D9]"
+                   class="flex-auto border border-gray-300 rounded px-3 py-2 text-sm
+                          focus:outline-none focus:ring-1 focus:ring-[#00B8D9]"
                    placeholder="A1:E100 or blank = full sheet">
+
+            <button id="useSelBtn"
+                    class="px-3 py-2 rounded border border-gray-300 text-sm
+                           hover:bg-gray-100 focus:outline-none">
+                Use selection
+            </button>
+
             <button id="cleanBtn"
                     class="px-5 py-2 rounded text-white font-semibold
-                     bg-[#00B8D9] hover:bg-[#00a4c2] disabled:opacity-50">
+                           bg-[#00B8D9] hover:bg-[#00a4c2] disabled:opacity-50">
                 Clean duplicates
             </button>
         </div>
@@ -59,7 +67,7 @@
                 <h3 class="text-lg font-semibold text-gray-800 mb-2">Exact duplicates</h3>
                 <div id="exactPanel"
                      class="min-h-[80px] border border-gray-200 rounded-md
-                    flex items-center justify-center text-gray-400">
+                            flex items-center justify-center text-gray-400">
                     No data yet
                 </div>
             </div>
@@ -68,7 +76,7 @@
                 <h3 class="text-lg font-semibold text-gray-800 mb-2">Possible duplicates</h3>
                 <div id="fuzzyPanel"
                      class="min-h-[80px] border border-gray-200 rounded-md
-                    flex items-center justify-center text-gray-400">
+                            flex items-center justify-center text-gray-400">
                     No data yet
                 </div>
             </div>
@@ -82,6 +90,7 @@
 </div>
 
 <script>
+
     const cleanBtn = document.getElementById('cleanBtn');
     const results = document.getElementById('results');
     const setStatus = msg => document.getElementById('statusBar').textContent = msg;
@@ -91,6 +100,20 @@
         blankPct.textContent = b + ' %';
         datePct.textContent = w + ' %';
     };
+
+    const useSelBtn = document.getElementById('useSelBtn');
+    const rangeInput = document.getElementById('rangeInput');
+
+    useSelBtn.addEventListener('click', () => {
+        google.script.run
+            .withSuccessHandler(a1 => {
+                rangeInput.value = a1;
+                rangeInput.focus();
+                rangeInput.select();
+            })
+            .withFailureHandler(() => setStatus('Failed to get selection'))
+            .getActiveRangeA1();
+    });
 
     cleanBtn.addEventListener('click', () => {
         cleanBtn.disabled = true;
