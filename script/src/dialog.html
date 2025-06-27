@@ -35,6 +35,7 @@
 <body class="fade-in">
 <div class="h-full flex flex-col">
     <div class="panel bg-white/90 backdrop-blur flex-auto m-0 p-6 overflow-auto">
+        <h2 class="text-2xl font-semibold text-gray-900 mb-6">Data Cleaner</h2>
 
         <p id="meter" class="text-sm text-gray-600 mb-4">
             <span class="font-semibold">Duplicates:</span> <span id="dupPct">–</span>,
@@ -62,6 +63,14 @@
                        class="w-5 h-5 rounded focus:ring-2 focus:ring-[#00B8D9]" checked>
                 <span class="text-sm">My range has headers</span>
             </label>
+        </div>
+
+        <!-- Spinner -->
+        <div id="spinner" class="hidden my-6 flex justify-center">
+            <svg class="animate-spin h-16 w-16 text-[#00B8D9]" viewBox="0 0 24 24" fill="none">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+            </svg>
         </div>
 
         <!-- Results (visible after Scan) -->
@@ -97,6 +106,7 @@
     const rangeInput = document.getElementById('rangeInput');
     const hdrChk = document.getElementById('hdrChk');
     const results = document.getElementById('results');
+    const spinner = document.getElementById('spinner');
     const setStatus = msg => document.getElementById('statusBar').textContent = msg;
     const fillMeter = (d = 0, b = 0, w = 0) => {
         dupPct.textContent = d + ' %';
@@ -133,9 +143,15 @@
         delete rangeInput.dataset.manual;
     });
 
+    /* helper to toggle spinner + button */
+    const setScanning = on => {
+        scanBtn.disabled = on;
+        spinner.classList.toggle('hidden', !on);
+    };
+
     /* Scan */
     scanBtn.addEventListener('click', () => {
-        scanBtn.disabled = true;
+        setScanning(true);
         setStatus('Scanning…');
 
         google.script.run
@@ -164,18 +180,18 @@
                             exactPanel.textContent = 'Error: ' + e.message;
                             setStatus('Failed — see console');
                         } finally {
-                            scanBtn.disabled = false;
-                        }
+                            setScanning(false);
+                        }  // hide spinner
                     })
                     .withFailureHandler(err => {
                         setStatus('Token error: ' + err);
-                        scanBtn.disabled = false;
+                        setScanning(false);
                     })
                     .getIdToken();
             })
             .withFailureHandler(err => {
                 setStatus('Range error: ' + err);
-                scanBtn.disabled = false;
+                setScanning(false);
             })
             .getActiveRangeValues();
     });
