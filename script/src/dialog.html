@@ -69,8 +69,8 @@
         <!-- Spinner overlay -->
         <div id="spinner" class="hidden absolute inset-0 flex items-center justify-center bg-white/70">
             <svg class="animate-spin h-16 w-16 text-[#00B8D9]" viewBox="0 0 24 24" fill="none">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
             </svg>
         </div>
 
@@ -93,7 +93,7 @@
             <!-- Run button -->
             <button id="runBtn"
                     class="hidden w-full py-2 rounded bg-[#00B8D9] text-white font-semibold hover:bg-[#00a4c2]">
-                Run action
+                Run highlight
             </button>
         </section>
     </div>
@@ -113,6 +113,8 @@
     const results = document.getElementById('results');
     const spinner = document.getElementById('spinner');
     const actionSel = document.getElementById('actionSel');
+    const exactPanel = document.getElementById('exactPanel');
+    const fuzzyPanel = document.getElementById('fuzzyPanel');
     const setStatus = m => document.getElementById('statusBar').textContent = m;
 
     /* initial range */
@@ -139,8 +141,9 @@
         runBtn.disabled = on;
     };
 
+    let lastExactRows = [];
+
     /* Scan */
-    let lastExactRows = []; // хранит индексы exact для Run
     scanBtn.addEventListener('click', () => {
         setLoading(true);
         setStatus('Scanning…');
@@ -154,14 +157,21 @@
                     });
                     if (!res.ok) throw new Error('API ' + res.status);
                     const data = await res.json();
-                    // mock panels
-                    exactPanel.textContent = data.exact?.length ? `${data.exact.length} groups` : 'No exact duplicates';
-                    fuzzyPanel.textContent = data.maybe?.length ? `${data.maybe.length} groups` : 'No possible duplicates';
+
+                    // update panels
+                    exactPanel.textContent = (data.confirmed?.length || 0) + ' pairs';
+                    fuzzyPanel.textContent = (data.candidates?.length || 0) + ' pairs';
                     results.classList.remove('hidden');
-                    // prepare indices (простое предположение: data.exactRows)
-                    lastExactRows = data.exactRows || [];
+
+                    // gather unique exact row indices
+                    if (data.confirmed) {
+                        lastExactRows = [...new Set(data.confirmed.flatMap(p => [p.first, p.second]))];
+                    } else if (data.meta) {
+                        lastExactRows = data.meta.filter(m => m.kind === 'EXACT').map(m => m.idx);
+                    } else lastExactRows = [];
+
                     if (actionSel.value === 'HIGHLIGHT' && lastExactRows.length) {
-                        runBtn.textContent = `Run highlight ${lastExactRows.length} rows`;
+                        runBtn.textContent = `Run highlight (${lastExactRows.length} rows)`;
                         runBtn.classList.remove('hidden');
                     } else {
                         runBtn.classList.add('hidden');
@@ -176,21 +186,22 @@
         }).getActiveRangeValues();
     });
 
-    /* Run action (highlight only for now) */
+    /* Run action */
     runBtn.addEventListener('click', () => {
         if (!lastExactRows.length) return;
         setLoading(true);
-        setStatus('Applying…');
+        setStatus('Highlighting…');
         google.script.run.withSuccessHandler(() => {
             setStatus(`${lastExactRows.length} rows highlighted`);
             setLoading(false);
-        }).withFailureHandler(e => {
+        }).withFailureHandler(() => {
             setStatus('Apps Script error');
             setLoading(false);
         })
             .highlightExactRows(lastExactRows);
     });
 
+    /* close on Esc */
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
             google.script.host.close();
