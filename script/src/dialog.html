@@ -43,23 +43,29 @@
             <span class="font-semibold">Weird dates:</span> <span id="datePct">–</span>
         </p>
 
-        <div class="flex items-center gap-3 mb-8">
+        <div class="flex items-center gap-3 mb-4">
             <input id="rangeInput" type="text"
                    class="flex-auto border border-gray-300 rounded px-3 py-2 text-sm
                           focus:outline-none focus:ring-1 focus:ring-[#00B8D9]"
-                   placeholder="A1:E100 or blank = full sheet">
-
+                   placeholder="Select range…">
             <button id="useSelBtn"
                     class="px-3 py-2 rounded border border-gray-300 text-sm
                            hover:bg-gray-100 focus:outline-none">
                 Use selection
             </button>
-
             <button id="cleanBtn"
                     class="px-5 py-2 rounded text-white font-semibold
                            bg-[#00B8D9] hover:bg-[#00a4c2] disabled:opacity-50">
                 Clean duplicates
             </button>
+        </div>
+
+        <div class="flex flex-col gap-2 mb-6">
+            <label class="flex items-center gap-2">
+                <input id="hdrChk" type="checkbox"
+                       class="w-5 h-5 rounded focus:ring-2 focus:ring-[#00B8D9]" checked>
+                <span class="text-sm">My range has headers</span>
+            </label>
         </div>
 
         <section id="results" class="space-y-8 hidden">
@@ -71,7 +77,6 @@
                     No data yet
                 </div>
             </div>
-
             <div>
                 <h3 class="text-lg font-semibold text-gray-800 mb-2">Possible duplicates</h3>
                 <div id="fuzzyPanel"
@@ -90,19 +95,17 @@
 </div>
 
 <script>
-
     const cleanBtn = document.getElementById('cleanBtn');
+    const useSelBtn = document.getElementById('useSelBtn');
+    const rangeInput = document.getElementById('rangeInput');
+    const hdrChk = document.getElementById('hdrChk');
     const results = document.getElementById('results');
     const setStatus = msg => document.getElementById('statusBar').textContent = msg;
-
     const fillMeter = (d = 0, b = 0, w = 0) => {
         dupPct.textContent = d + ' %';
         blankPct.textContent = b + ' %';
         datePct.textContent = w + ' %';
     };
-
-    const useSelBtn = document.getElementById('useSelBtn');
-    const rangeInput = document.getElementById('rangeInput');
 
     google.script.run
         .withFailureHandler(() => setStatus('Failed to get initial range'))
@@ -113,12 +116,12 @@
 
     useSelBtn.addEventListener('click', () => {
         google.script.run
+            .withFailureHandler(() => setStatus('Failed to get selection'))
             .withSuccessHandler(a1 => {
                 rangeInput.value = a1;
                 rangeInput.focus();
                 rangeInput.select();
             })
-            .withFailureHandler(() => setStatus('Failed to get selection'))
             .getActiveRangeA1();
     });
 
@@ -140,16 +143,12 @@
                                         'Content-Type': 'application/json',
                                         'Authorization': `Bearer ${token}`
                                     },
-                                    body: JSON.stringify({rows})
+                                    body: JSON.stringify({rows, hasHeaders: hdrChk.checked})
                                 });
                             if (!res.ok) throw new Error('API ' + res.status);
                             const data = await res.json();
-                            exactPanel.textContent = data.exact?.length
-                                ? `${data.exact.length} groups`
-                                : 'No exact duplicates';
-                            fuzzyPanel.textContent = data.maybe?.length
-                                ? `${data.maybe.length} groups`
-                                : 'No possible duplicates';
+                            exactPanel.textContent = data.exact?.length ? `${data.exact.length} groups` : 'No exact duplicates';
+                            fuzzyPanel.textContent = data.maybe?.length ? `${data.maybe.length} groups` : 'No possible duplicates';
                             results.classList.remove('hidden');
                             setStatus('Scan complete.');
                         } catch (e) {
@@ -174,7 +173,7 @@
 
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
-            google.script.host.close()
+            google.script.host.close();
         }
     });
 </script>
