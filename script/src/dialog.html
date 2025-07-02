@@ -98,7 +98,6 @@
     const fuzzyPanel = document.getElementById('fuzzyPanel');
     let lastExactRows = [];
     let lastPossibleRows = [];
-    let rowsCanon = [];
     const setStatus = m => document.getElementById('statusBar').textContent = m;
     const setLoading = on => {
         spinner.classList.toggle('hidden', !on);
@@ -112,14 +111,12 @@
     let lastA1 = '';
     setInterval(() => {
         google.script.run.withSuccessHandler(a1 => {
-            if (a1 && a1 !== lastA1 && !rangeInput.dataset.manual) {
+            if (a1 && a1 !== lastA1 && !rangeInput.matches(':focus')) {
                 lastA1 = a1;
                 rangeInput.value = a1;
             }
         }).getActiveRangeA1();
     }, 400);
-    rangeInput.addEventListener('input', () => rangeInput.dataset.manual = true);
-    rangeInput.addEventListener('blur', () => delete rangeInput.dataset.manual);
 
     scanBtn.addEventListener('click', () => {
         setLoading(true);
@@ -137,23 +134,35 @@
                     exactPanel.textContent = (data.confirmed?.length || 0) + ' pairs';
                     fuzzyPanel.textContent = (data.candidates?.length || 0) + ' pairs';
                     results.classList.remove('hidden');
-                    if (data.confirmed) {
-                        lastExactRows = [...new Set(data.confirmed.flatMap(p => [p.first, p.second]))];
-                    } else if (data.meta) {
-                        lastExactRows = data.meta.filter(m => m.kind === 'EXACT').map(m => m.idx);
-                    } else lastExactRows = [];
-                    if (data.candidates) {
-                        lastPossibleRows = [...new Set(data.candidates.flatMap(p => [p.first, p.second]))];
-                    } else if (data.meta) {
-                        lastPossibleRows = data.meta.filter(m => m.kind === 'FUZZY').map(m => m.idx);
-                    } else lastPossibleRows = [];
-                    rowsCanon = (data.meta ?? []).filter(m => m.kind === 'CANON').map(m => m.idx);
-                    if (rowsCanon.length) {
-                        google.script.run.highlightCanonRows(rowsCanon);
+
+                    lastExactRows = data.confirmed ? [...new Set(data.confirmed.flatMap(p => [p.first, p.second]))] : [];
+                    lastPossibleRows = data.candidates ? [...new Set(data.candidates.flatMap(p => [p.first, p.second]))] : [];
+
+                    const colorMap = {};
+                    (data.exact ?? []).forEach(cl => {
+                        if (cl.clusterId && cl.color) colorMap[cl.clusterId] = cl.color;
+                    });
+
+                    const canonMeta = (data.meta ?? []).filter(m => m.kind === 'CANON');
+                    const fuzzyMeta = (data.meta ?? []).filter(m => m.kind === 'FUZZY');
+
+                    canonMeta.forEach(m => {
+                        const clr = colorMap[m.clusterId] || '#FFFBEA';
+                        google.script.run.highlightCanonRows([m.idx], clr);
+                    });
+
+                    /* paint fuzzy */
+                    if (fuzzyMeta.length) {
+                        const byCluster = {};
+                        fuzzyMeta.forEach(m => {
+                            (byCluster[m.clusterId] = byCluster[m.clusterId] || []).push(m.idx);
+                        });
+                        Object.entries(byCluster).forEach(([cid, idArr]) => {
+                            const clr = colorMap[cid] || '#FBBC04';
+                            google.script.run.highlightPossibleRows(idArr, clr);
+                        });
                     }
-                    if (lastPossibleRows.length) {
-                        google.script.run.highlightPossibleRows(lastPossibleRows);
-                    }
+
                     if (actionSel.value === 'HIGHLIGHT' && lastExactRows.length) {
                         runBtn.textContent = `Run highlight (${lastExactRows.length} rows)`;
                         runBtn.classList.remove('hidden');
@@ -180,7 +189,7 @@
         }).withFailureHandler(() => {
             setStatus('Apps Script error');
             setLoading(false);
-        }).highlightExactRows(lastExactRows);
+        }).highlightRows(lastExactRows, '#F28B82');
     });
 
     document.addEventListener('keydown', e => {
@@ -190,4 +199,5 @@
     });
 </script>
 </body>
+</html>
 </html>
