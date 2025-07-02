@@ -139,6 +139,15 @@
                     lastPossibleRows = data.candidates ? [...new Set(data.candidates.flatMap(p => [p.first, p.second]))] : [];
 
                     const colorMap = {};
+
+                    function clusterColor(cid) {
+                        const h = parseInt(cid.slice(0, 6), 16) % 360;
+                        return `hsl(${h} 90% 80%)`;
+                    }
+
+                    (data.exact ?? []).forEach(cl => {
+                        if (cl.clusterId) colorMap[cl.clusterId] = cl.color || clusterColor(cl.clusterId);
+                    });
                     (data.exact ?? []).forEach(cl => {
                         if (cl.clusterId && cl.color) colorMap[cl.clusterId] = cl.color;
                     });
