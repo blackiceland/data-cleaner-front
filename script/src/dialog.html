@@ -98,6 +98,7 @@
     const fuzzyPanel = document.getElementById('fuzzyPanel');
     let lastExactRows = [];
     let lastPossibleRows = [];
+    let rowsCanon = [];
     const setStatus = m => document.getElementById('statusBar').textContent = m;
     const setLoading = on => {
         spinner.classList.toggle('hidden', !on);
@@ -146,6 +147,10 @@
                     } else if (data.meta) {
                         lastPossibleRows = data.meta.filter(m => m.kind === 'FUZZY').map(m => m.idx);
                     } else lastPossibleRows = [];
+                    rowsCanon = (data.meta ?? []).filter(m => m.kind === 'CANON').map(m => m.idx);
+                    if (rowsCanon.length) {
+                        google.script.run.highlightCanonRows(rowsCanon);
+                    }
                     if (lastPossibleRows.length) {
                         google.script.run.highlightPossibleRows(lastPossibleRows);
                     }
