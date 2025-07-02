@@ -49,7 +49,7 @@ function highlightPossibleRows(rowIdxArr) {
     const sheet = SpreadsheetApp.getActiveSheet();
     const width = sheet.getLastColumn();
     rowIdxArr.forEach(i =>
-        sheet.getRange(i + 1, 1, 1, width).setBackground('#FBBC04'));
+        sheet.getRange(i + 1, 1, 1, width).setBackground('#FFF59D'));
 }
 
 function highlightCanonRows(rowIdxArr) {

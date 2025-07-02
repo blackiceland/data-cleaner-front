@@ -167,7 +167,7 @@
                             (byCluster[m.clusterId] = byCluster[m.clusterId] || []).push(m.idx);
                         });
                         Object.entries(byCluster).forEach(([cid, idArr]) => {
-                            const clr = colorMap[cid] || '#FBBC04';
+                            const clr = colorMap[cid] || '#FFF59D';
                             google.script.run.highlightPossibleRows(idArr, clr);
                         });
                     }
@@ -208,5 +208,4 @@
     });
 </script>
 </body>
-</html>
 </html>
