@@ -35,46 +35,34 @@
 <body class="fade-in">
 <div class="h-full flex flex-col">
     <div class="panel relative bg-white/90 backdrop-blur flex-auto m-0 p-6 overflow-auto">
-        <!-- Range input + Scan button -->
         <div class="flex items-center gap-3 mb-3">
             <input id="rangeInput" type="text"
-                   class="flex-auto border border-gray-300 rounded px-3 py-2 text-sm
-                          focus:outline-none focus:ring-1 focus:ring-[#00B8D9]"
+                   class="flex-auto border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#00B8D9]"
                    placeholder="Select range…">
             <button id="scanBtn"
-                    class="px-5 py-2 rounded text-white font-semibold
-                           bg-[#00B8D9] hover:bg-[#00a4c2] disabled:opacity-50">
+                    class="px-5 py-2 rounded text-white font-semibold bg-[#00B8D9] hover:bg-[#00a4c2] disabled:opacity-50">
                 Scan
             </button>
         </div>
-        <!-- Action dropdown -->
         <select id="actionSel"
-                class="w-full mb-4 border border-gray-300 rounded px-3 py-2 text-sm
-                       focus:outline-none focus:ring-1 focus:ring-[#00B8D9]">
+                class="w-full mb-4 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#00B8D9]">
             <option value="HIGHLIGHT" selected>Highlight duplicates</option>
             <option value="DELETE">Delete duplicates</option>
             <option value="MOVE">Move duplicates</option>
             <option value="MARK">Mark duplicates</option>
         </select>
-
-        <!-- Options -->
         <div class="flex flex-col gap-2 mb-6">
             <label class="flex items-center gap-2">
-                <input id="hdrChk" type="checkbox"
-                       class="w-5 h-5 rounded focus:ring-2 focus:ring-[#00B8D9]" checked>
+                <input id="hdrChk" type="checkbox" class="w-5 h-5 rounded focus:ring-2 focus:ring-[#00B8D9]" checked>
                 <span class="text-sm">My range has headers</span>
             </label>
         </div>
-
-        <!-- Spinner overlay -->
         <div id="spinner" class="hidden absolute inset-0 flex items-center justify-center bg-white/70">
             <svg class="animate-spin h-16 w-16 text-[#00B8D9]" viewBox="0 0 24 24" fill="none">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
             </svg>
         </div>
-
-        <!-- Results -->
         <section id="results" class="space-y-6 hidden">
             <div>
                 <h3 class="text-lg font-semibold text-gray-800 mb-2">Exact duplicates</h3>
@@ -90,22 +78,15 @@
                     No data yet
                 </div>
             </div>
-            <!-- Run button -->
             <button id="runBtn"
-                    class="hidden w-full py-2 rounded bg-[#00B8D9] text-white font-semibold hover:bg-[#00a4c2]">
-                Run highlight
+                    class="hidden w-full py-2 rounded bg-[#00B8D9] text-white font-semibold hover:bg-[#00a4c2]">Run
+                highlight
             </button>
         </section>
     </div>
-
-    <footer id="statusBar"
-            class="text-sm text-center text-gray-600 py-2 border-t border-gray-200">
-        Ready.
-    </footer>
+    <footer id="statusBar" class="text-sm text-center text-gray-600 py-2 border-t border-gray-200">Ready.</footer>
 </div>
-
 <script>
-    /* refs */
     const scanBtn = document.getElementById('scanBtn');
     const runBtn = document.getElementById('runBtn');
     const rangeInput = document.getElementById('rangeInput');
@@ -115,14 +96,18 @@
     const actionSel = document.getElementById('actionSel');
     const exactPanel = document.getElementById('exactPanel');
     const fuzzyPanel = document.getElementById('fuzzyPanel');
+    let lastExactRows = [];
+    let lastPossibleRows = [];
     const setStatus = m => document.getElementById('statusBar').textContent = m;
+    const setLoading = on => {
+        spinner.classList.toggle('hidden', !on);
+        scanBtn.disabled = on;
+        runBtn.disabled = on;
+    };
 
-    /* initial range */
     google.script.run.withSuccessHandler(a1 => {
         rangeInput.value = a1;
     }).getInitialRangeA1();
-
-    /* auto-update range */
     let lastA1 = '';
     setInterval(() => {
         google.script.run.withSuccessHandler(a1 => {
@@ -135,15 +120,6 @@
     rangeInput.addEventListener('input', () => rangeInput.dataset.manual = true);
     rangeInput.addEventListener('blur', () => delete rangeInput.dataset.manual);
 
-    const setLoading = on => {
-        spinner.classList.toggle('hidden', !on);
-        scanBtn.disabled = on;
-        runBtn.disabled = on;
-    };
-
-    let lastExactRows = [];
-
-    /* Scan */
     scanBtn.addEventListener('click', () => {
         setLoading(true);
         setStatus('Scanning…');
@@ -157,19 +133,22 @@
                     });
                     if (!res.ok) throw new Error('API ' + res.status);
                     const data = await res.json();
-
-                    // update panels
                     exactPanel.textContent = (data.confirmed?.length || 0) + ' pairs';
                     fuzzyPanel.textContent = (data.candidates?.length || 0) + ' pairs';
                     results.classList.remove('hidden');
-
-                    // gather unique exact row indices
                     if (data.confirmed) {
                         lastExactRows = [...new Set(data.confirmed.flatMap(p => [p.first, p.second]))];
                     } else if (data.meta) {
                         lastExactRows = data.meta.filter(m => m.kind === 'EXACT').map(m => m.idx);
                     } else lastExactRows = [];
-
+                    if (data.candidates) {
+                        lastPossibleRows = [...new Set(data.candidates.flatMap(p => [p.first, p.second]))];
+                    } else if (data.meta) {
+                        lastPossibleRows = data.meta.filter(m => m.kind === 'FUZZY').map(m => m.idx);
+                    } else lastPossibleRows = [];
+                    if (lastPossibleRows.length) {
+                        google.script.run.highlightPossibleRows(lastPossibleRows);
+                    }
                     if (actionSel.value === 'HIGHLIGHT' && lastExactRows.length) {
                         runBtn.textContent = `Run highlight (${lastExactRows.length} rows)`;
                         runBtn.classList.remove('hidden');
@@ -186,7 +165,6 @@
         }).getActiveRangeValues();
     });
 
-    /* Run action */
     runBtn.addEventListener('click', () => {
         if (!lastExactRows.length) return;
         setLoading(true);
@@ -197,11 +175,9 @@
         }).withFailureHandler(() => {
             setStatus('Apps Script error');
             setLoading(false);
-        })
-            .highlightExactRows(lastExactRows);
+        }).highlightExactRows(lastExactRows);
     });
 
-    /* close on Esc */
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
             google.script.host.close();

@@ -44,3 +44,11 @@ function getInitialRangeA1() {
   return SpreadsheetApp.getActiveSheet().getDataRange().getA1Notation();
 }
 
+function highlightPossibleRows(rowIdxArr) {
+  if (!rowIdxArr || !rowIdxArr.length) return;
+  const sheet = SpreadsheetApp.getActiveSheet();
+  const width = sheet.getLastColumn();
+  rowIdxArr.forEach(i =>
+      sheet.getRange(i + 1, 1, 1, width).setBackground('#FBBC04'));
+}
+
